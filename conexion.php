@@ -153,7 +153,7 @@ function renderizarNavegacion($paginaActiva = '') {
     </header>
 
     <nav class="taberna-nav">
-        <a href="inicio.php" class="nav-enlace <?php echo $paginaActiva === 'inicio' ? 'activo' : ''; ?>">Salón Principal</a>
+        <a href="index.php" class="nav-enlace <?php echo $paginaActiva === 'index' ? 'activo' : ''; ?>">Salón Principal</a>
         <a href="juegos.php" class="nav-enlace <?php echo $paginaActiva === 'juegos' ? 'activo' : ''; ?>">Juegos Deseados</a>
         <a href="leaderboard.php" class="nav-enlace <?php echo $paginaActiva === 'leaderboard' ? 'activo' : ''; ?>">Tablón de Campeones</a>
         <a href="votaciones.php" class="nav-enlace <?php echo $paginaActiva === 'votaciones' ? 'activo' : ''; ?>">Consejo de Votos</a>

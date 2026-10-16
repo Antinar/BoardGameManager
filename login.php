@@ -2,7 +2,7 @@
 require_once 'conexion.php';
 
 if (isset($_SESSION['username']) && !empty($_SESSION['username'])) {
-    header('Location: inicio.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['NombrePersona']        = $usuario['NombrePersona'];
                 $_SESSION['rol']                  = $usuario['rol'];
                 $_SESSION['inscrito_leaderboard'] = (int)$usuario['inscrito_leaderboard'];
-                header('Location: inicio.php');
+                header('Location: index.php');
                 exit;
             } else {
                 $mensajeError = 'Credenciales incorrectas. El guardián de la puerta no te reconoce.';
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['rol']                  = 'jugador';
                 $_SESSION['inscrito_leaderboard'] = 0;
 
-                header('Location: inicio.php');
+                header('Location: index.php');
                 exit;
             }
         }
