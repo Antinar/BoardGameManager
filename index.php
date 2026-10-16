@@ -23,7 +23,7 @@ $ultimaVictoria = $stmtUltima->fetch();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salón Principal - La Taberna del Dado de Hierro</title>
+    <title>Salón Principal - La Taberna de las Gatitas Jugonas</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -55,7 +55,7 @@ $ultimaVictoria = $stmtUltima->fetch();
             <h3 class="seccion-subtitulo">Accesos Rápidos</h3>
             <div style="display:grid; gap:10px;">
                 <a href="alta_juego.php" class="btn btn-primario">Subir Nuevo Juego</a>
-                <a href="juegos.php" class="btn btn-bronce">Ver Juegos Deseados (Interesados)</a>
+                <a href="juegos.php" class="btn btn-bronce">Ver Juegos Deseados</a>
                 <a href="leaderboard.php" class="btn">Tablón de Campeones (Leaderboard)</a>
                 <a href="votaciones.php" class="btn btn-exito">Consejo de Votaciones</a>
                 <?php if ($_SESSION['rol'] === 'admin'): ?>

@@ -129,7 +129,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consejo de Votos - La Taberna del Dado de Hierro</title>
+    <title>Consejo de Votos - La Taberna de las Gatitas Jugonas</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>

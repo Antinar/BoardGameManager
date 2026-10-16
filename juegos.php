@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = isset($_POST['accion']) ? $_POST['accion'] : '';
 
     // 2. Apuntarse o desapuntarse como interesado en un juego que NO tenemos
-    elseif ($accion === 'toggle_interes') {
+    if ($accion === 'toggle_interes') {
         $nombreJuego = isset($_POST['NombreJuego']) ? trim($_POST['NombreJuego']) : '';
 
         $stmtJuego = $pdo->prepare("SELECT lo_tenemos FROM Juego WHERE NombreJuego = ?");
@@ -84,7 +84,7 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juegos Deseados - La Taberna del Dado de Hierro</title>
+    <title>Juegos Deseados - La Taberna de las Gatitas Jugonas</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
