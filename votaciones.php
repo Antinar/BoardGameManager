@@ -179,9 +179,6 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
     <!-- Listado de Votaciones Activas -->
     <section class="pergamino">
         <h2 class="seccion-titulo">Votaciones Activas en la Taberna</h2>
-        <p style="margin-bottom:16px;">
-            Solo se votan los juegos que <strong>ya tenemos en la taberna</strong>. Se resaltan en bronce y pergamino claro aquellos juegos que cuentan con al menos 1 voto y superan el mínimo actual de votos de la votación ($V_i \ge 1$ y $V_i > V_{\min}$).
-        </p>
 
         <?php if (count($juegosQueTenemos) === 0): ?>
             <div class="alerta alerta-error">
@@ -206,18 +203,17 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                 <div class="votacion-bloque">
                     <div class="votacion-cabecera">
                         <div>
-                            <h3 style="font-size:1.3rem; color:#23170f;"><?php echo h($vot['titulo']); ?></h3>
-                            <p style="font-size:0.9rem;">
-                                Convocada por: <strong><?php echo h($vot['nombre_creador']); ?></strong> (<?php echo h($vot['creador_username']); ?>)
-                                | Mínimo actual en esta votación: <strong><?php echo $vMin; ?> voto(s)</strong>
+                            <h3 style="font-size:1.25rem; color:#23170f;"><?php echo h($vot['titulo']); ?></h3>
+                            <p style="font-size:0.88rem;">
+                                Por <strong><?php echo h($vot['nombre_creador']); ?></strong>
                             </p>
                         </div>
-                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                             <span class="etiqueta etiqueta-bronce">
-                                <?php echo $esMultiple ? 'Voto Múltiple (Varios juegos)' : 'Voto Único (1 juego)'; ?>
+                                <?php echo $esMultiple ? 'Voto Múltiple' : 'Voto Único'; ?>
                             </span>
                             <span class="etiqueta etiqueta-pendiente">
-                                Día límite: <?php echo h($vot['fecha_limite']); ?>
+                                Hasta: <?php echo h($vot['fecha_limite']); ?>
                             </span>
                         </div>
                     </div>

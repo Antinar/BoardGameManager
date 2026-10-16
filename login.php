@@ -52,13 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ((int)$stmtCheck->fetchColumn() > 0) {
                 $mensajeError = 'Ese nombre de usuario ya pertenece a otro parroquiano. Elige otro.';
             } else {
-                $stmtIns = $pdo->prepare("INSERT INTO Persona (username, NombrePersona, contrasenya, rol, inscrito_leaderboard) VALUES (?, ?, ?, 'jugador', 0)");
+                $stmtIns = $pdo->prepare("INSERT INTO Persona (username, NombrePersona, contrasenya, rol, inscrito_leaderboard) VALUES (?, ?, ?, 'jugador', 1)");
                 $stmtIns->execute([$username, $nombrePersona, $contrasenya]);
 
                 $_SESSION['username']             = $username;
                 $_SESSION['NombrePersona']        = $nombrePersona;
                 $_SESSION['rol']                  = 'jugador';
-                $_SESSION['inscrito_leaderboard'] = 0;
+                $_SESSION['inscrito_leaderboard'] = 1;
 
                 header('Location: index.php');
                 exit;
@@ -72,17 +72,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entrada a la Taberna - La Taberna del Dado de Hierro</title>
+    <title>Entrada a la Taberna - La Taberna de las Gatitas Jugonas</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <div class="login-envoltorio">
     <div class="pergamino">
-        <h1 class="seccion-titulo" style="text-align:center;">La Taberna del Dado de Hierro</h1>
-        <p style="text-align:center; margin-bottom:18px; font-style:italic;">
-            Identifícate ante el posadero o firma tu alta en el libro de parroquianos para entrar.
-        </p>
+        <h1 class="seccion-titulo" style="text-align:center;">La Taberna de las Gatitas Jugonas</h1>
 
         <?php if ($mensajeError !== ''): ?>
             <div class="alerta alerta-error"><?php echo h($mensajeError); ?></div>
@@ -103,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     class="pestana-btn <?php echo $pestanaActiva === 'registro' ? 'activa' : ''; ?>"
                     data-tab-group="auth"
                     data-tab-target="#panel-registro">
-                Nuevo Parroquiano (Alta)
+                Nuevo Miembro (Alta)
             </button>
         </div>
 

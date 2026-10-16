@@ -40,7 +40,7 @@ function requerirLogin(PDO $pdo) {
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT username, NombrePersona, rol, inscrito_leaderboard FROM Persona WHERE username = ?");
+    $stmt = $pdo->prepare("SELECT username, NombrePersona, rol FROM Persona WHERE username = ?");
     $stmt->execute([$_SESSION['username']]);
     $usuario = $stmt->fetch();
 
@@ -51,10 +51,9 @@ function requerirLogin(PDO $pdo) {
         exit;
     }
 
-    $_SESSION['username']             = $usuario['username'];
-    $_SESSION['NombrePersona']        = $usuario['NombrePersona'];
-    $_SESSION['rol']                  = $usuario['rol'];
-    $_SESSION['inscrito_leaderboard'] = (int)$usuario['inscrito_leaderboard'];
+    $_SESSION['username']      = $usuario['username'];
+    $_SESSION['NombrePersona'] = $usuario['NombrePersona'];
+    $_SESSION['rol']           = $usuario['rol'];
 }
 
 /**
@@ -139,26 +138,26 @@ function renderizarNavegacion($paginaActiva = '') {
     <header class="taberna-header">
         <div class="taberna-titulo-bloque">
             <h1 class="taberna-titulo">La Taberna del Dado de Hierro</h1>
-            <p class="taberna-subtitulo">Cofradía de Juegos de Mesa, Crónicas de Victoria y Consejo de Votaciones</p>
         </div>
         <div class="taberna-usuario-bloque">
             <span class="usuario-etiqueta">
-                Parroquiano: <strong><?php echo h($nombreMostrar); ?></strong> (<?php echo h($userMostrar); ?>)
+                <strong><?php echo h($nombreMostrar); ?></strong> (<?php echo h($userMostrar); ?>)
                 <?php if ($esAdmin): ?>
-                    <span class="insignia-rol">[Tabernero / Admin]</span>
+                    <span class="insignia-rol">[Admin]</span>
                 <?php endif; ?>
             </span>
-            <a href="logout.php" class="btn btn-peligro btn-pequeno">Salir de la Taberna</a>
+            <a href="logout.php" class="btn btn-peligro btn-pequeno">Salir</a>
         </div>
     </header>
 
     <nav class="taberna-nav">
-        <a href="index.php" class="nav-enlace <?php echo $paginaActiva === 'index' ? 'activo' : ''; ?>">Salón Principal</a>
+        <a href="index.php" class="nav-enlace <?php echo $paginaActiva === 'index' ? 'activo' : ''; ?>">Inicio</a>
         <a href="juegos.php" class="nav-enlace <?php echo $paginaActiva === 'juegos' ? 'activo' : ''; ?>">Juegos Deseados</a>
-        <a href="leaderboard.php" class="nav-enlace <?php echo $paginaActiva === 'leaderboard' ? 'activo' : ''; ?>">Tablón de Campeones</a>
-        <a href="votaciones.php" class="nav-enlace <?php echo $paginaActiva === 'votaciones' ? 'activo' : ''; ?>">Consejo de Votos</a>
+        <a href="alta_juego.php" class="nav-enlace <?php echo $paginaActiva === 'alta_juego' ? 'activo' : ''; ?>">Subir Juego</a>
+        <a href="leaderboard.php" class="nav-enlace <?php echo $paginaActiva === 'leaderboard' ? 'activo' : ''; ?>">Leaderboard</a>
+        <a href="votaciones.php" class="nav-enlace <?php echo $paginaActiva === 'votaciones' ? 'activo' : ''; ?>">Votaciones</a>
         <?php if ($esAdmin): ?>
-            <a href="admin.php" class="nav-enlace nav-admin <?php echo $paginaActiva === 'admin' ? 'activo' : ''; ?>">Despacho del Tabernero (Admin)</a>
+            <a href="admin.php" class="nav-enlace nav-admin <?php echo $paginaActiva === 'admin' ? 'activo' : ''; ?>">Admin</a>
         <?php endif; ?>
     </nav>
     <?php

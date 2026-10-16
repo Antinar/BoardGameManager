@@ -22,7 +22,7 @@ CREATE TABLE `Persona` (
   `NombrePersona` VARCHAR(120) NOT NULL,
   `contrasenya` VARCHAR(255) NOT NULL,
   `rol` ENUM('jugador', 'admin') NOT NULL DEFAULT 'jugador',
-  `inscrito_leaderboard` TINYINT(1) NOT NULL DEFAULT 0,
+  `inscrito_leaderboard` TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

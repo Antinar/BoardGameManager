@@ -20,22 +20,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $nombrePersona = trim($_POST['NombrePersona']);
                 $contrasenya = (string)$_POST['contrasenya'];
                 $rol = ($_POST['rol'] === 'admin') ? 'admin' : 'jugador';
-                $inscrito = isset($_POST['inscrito_leaderboard']) && $_POST['inscrito_leaderboard'] === '1' ? 1 : 0;
 
-                $stmt = $pdo->prepare("UPDATE Persona SET username = ?, NombrePersona = ?, contrasenya = ?, rol = ?, inscrito_leaderboard = ? WHERE username = ?");
-                $stmt->execute([$nuevoUsername, $nombrePersona, $contrasenya, $rol, $inscrito, $originalUsername]);
+                $stmt = $pdo->prepare("UPDATE Persona SET username = ?, NombrePersona = ?, contrasenya = ?, rol = ?, inscrito_leaderboard = 1 WHERE username = ?");
+                $stmt->execute([$nuevoUsername, $nombrePersona, $contrasenya, $rol, $originalUsername]);
 
                 if ($_SESSION['username'] === $originalUsername) {
                     $_SESSION['username'] = $nuevoUsername;
                     $_SESSION['NombrePersona'] = $nombrePersona;
                     $_SESSION['rol'] = $rol;
                 }
-                $mensajeExito = "Usuario «{$originalUsername}» actualizado correctamente (con propagación en cascada).";
+                $mensajeExito = "Usuario «{$originalUsername}» actualizado.";
             } elseif ($operacion === 'eliminar') {
                 $usernameDel = $_POST['username'];
+                if ($usernameDel === $_SESSION['username']) {
+                    throw new Exception("No puedes eliminar tu propio usuario administrador mientras tienes la sesión iniciada.");
+                }
                 $stmt = $pdo->prepare("DELETE FROM Persona WHERE username = ?");
                 $stmt->execute([$usernameDel]);
-                $mensajeExito = "Usuario «{$usernameDel}» eliminado junto con sus registros asociados.";
+                $mensajeExito = "Usuario «{$usernameDel}» eliminado.";
             }
         }
 
@@ -55,17 +57,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($nuevaRuta === false) {
                         throw new Exception($errImg);
                     }
+                    // Borrar archivo antiguo si estaba en uploads/
+                    if (strpos($urlActual, 'uploads/') === 0 && file_exists(__DIR__ . '/' . $urlActual)) {
+                        @unlink(__DIR__ . '/' . $urlActual);
+                    }
                     $urlActual = $nuevaRuta;
                 }
 
                 $stmt = $pdo->prepare("UPDATE Juego SET NombreJuego = ?, Url = ?, lo_tenemos = ? WHERE NombreJuego = ?");
                 $stmt->execute([$nuevoNombre, $urlActual, $loTenemos, $originalNombre]);
-                $mensajeExito = "Juego «{$originalNombre}» actualizado correctamente.";
+
+                // Si pasa a "Ya lo tenemos", limpiamos sus interesados de Persona_Juego
+                if ($loTenemos === 1) {
+                    $stmtClean = $pdo->prepare("DELETE FROM Persona_Juego WHERE NombreJuego = ?");
+                    $stmtClean->execute([$nuevoNombre]);
+                }
+
+                $mensajeExito = "Juego «{$originalNombre}» actualizado.";
             } elseif ($operacion === 'eliminar') {
                 $nombreDel = $_POST['NombreJuego'];
+                $stmtUrl = $pdo->prepare("SELECT Url FROM Juego WHERE NombreJuego = ?");
+                $stmtUrl->execute([$nombreDel]);
+                $imgAntigua = $stmtUrl->fetchColumn();
+
                 $stmt = $pdo->prepare("DELETE FROM Juego WHERE NombreJuego = ?");
                 $stmt->execute([$nombreDel]);
-                $mensajeExito = "Juego «{$nombreDel}» eliminado de la base de datos.";
+
+                if ($imgAntigua && strpos($imgAntigua, 'uploads/') === 0 && file_exists(__DIR__ . '/' . $imgAntigua)) {
+                    @unlink(__DIR__ . '/' . $imgAntigua);
+                }
+                $mensajeExito = "Juego «{$nombreDel}» eliminado.";
             }
         }
 
@@ -76,9 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($operacion === 'crear') {
                 $u = trim($_POST['username']);
                 $j = trim($_POST['NombreJuego']);
-                $stmt = $pdo->prepare("INSERT INTO Persona_Juego (username, NombreJuego) VALUES (?, ?)");
+                $stmt = $pdo->prepare("INSERT IGNORE INTO Persona_Juego (username, NombreJuego) VALUES (?, ?)");
                 $stmt->execute([$u, $j]);
-                $mensajeExito = "Relación de interés creada para «{$u}» en «{$j}».";
+                $mensajeExito = "Relación añadida para «{$u}» en «{$j}».";
             } elseif ($operacion === 'editar') {
                 $origU = $_POST['orig_username'];
                 $origJ = $_POST['orig_NombreJuego'];
@@ -86,13 +107,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $nuevoJ = trim($_POST['NombreJuego']);
                 $stmt = $pdo->prepare("UPDATE Persona_Juego SET username = ?, NombreJuego = ? WHERE username = ? AND NombreJuego = ?");
                 $stmt->execute([$nuevoU, $nuevoJ, $origU, $origJ]);
-                $mensajeExito = "Inscripción de interés actualizada correctamente.";
+                $mensajeExito = "Relación actualizada.";
             } elseif ($operacion === 'eliminar') {
                 $u = $_POST['username'];
                 $j = $_POST['NombreJuego'];
                 $stmt = $pdo->prepare("DELETE FROM Persona_Juego WHERE username = ? AND NombreJuego = ?");
                 $stmt->execute([$u, $j]);
-                $mensajeExito = "Inscripción de interés eliminada.";
+                $mensajeExito = "Relación eliminada.";
             }
         }
 
@@ -200,17 +221,16 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
 
     <!-- 1. GESTIÓN DE PERSONAS -->
     <section class="pergamino">
-        <h3 class="seccion-titulo">1. Tabla Persona (Usuarios Registrados: <?php echo count($personas); ?>)</h3>
+        <h3 class="seccion-titulo">1. Usuarios (<?php echo count($personas); ?>)</h3>
         <div class="tabla-contenedor">
             <table class="tabla-taberna">
                 <thead>
                     <tr>
                         <th>Username (PK)</th>
                         <th>Nombre y Apellidos</th>
-                        <th>Contraseña (Texto Plano)</th>
+                        <th>Contraseña</th>
                         <th>Rol</th>
-                        <th>En Leaderboard</th>
-                        <th style="width:210px;">Acciones</th>
+                        <th style="width:190px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -238,15 +258,9 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
                                 </select>
                             </td>
                             <td>
-                                <select form="<?php echo $formIdP; ?>" name="inscrito_leaderboard" class="select-taberna">
-                                    <option value="1" <?php echo (int)$p['inscrito_leaderboard'] === 1 ? 'selected' : ''; ?>>Sí (1)</option>
-                                    <option value="0" <?php echo (int)$p['inscrito_leaderboard'] === 0 ? 'selected' : ''; ?>>No (0)</option>
-                                </select>
-                            </td>
-                            <td>
-                                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <div class="acciones-admin-celda">
                                     <button type="submit" form="<?php echo $formIdP; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
-                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar al usuario <?php echo h($p['username']); ?> y todos sus datos?">
+                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar al usuario <?php echo h($p['username']); ?>?">
                                         <input type="hidden" name="entidad" value="persona">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="username" value="<?php echo h($p['username']); ?>">
@@ -260,7 +274,7 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
             </table>
         </div>
     </section>
-
+    
     <!-- 2. GESTIÓN DE JUEGOS -->
     <section class="pergamino">
         <h3 class="seccion-titulo">2. Tabla Juego (Juegos Registrados: <?php echo count($juegos); ?>)</h3>
@@ -354,7 +368,7 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($relacionesPJ as $ idx => $rel): ?>
+                    <?php foreach ($relacionesPJ as $idx => $rel): ?>
                         <?php $formIdPJ = 'form_pj_' . $idx; ?>
                         <tr>
                             <td>

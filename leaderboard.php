@@ -9,16 +9,8 @@ $usuarioActual = $_SESSION['username'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = isset($_POST['accion']) ? $_POST['accion'] : '';
 
-    // 1. Inscribirse personalmente en el Leaderboard
-    if ($accion === 'inscribirme') {
-        $stmt = $pdo->prepare("UPDATE Persona SET inscrito_leaderboard = 1 WHERE username = ?");
-        $stmt->execute([$usuarioActual]);
-        $_SESSION['inscrito_leaderboard'] = 1;
-        $mensajeExito = "Has quedado inscrito oficialmente en el Tablón de Campeones (Leaderboard).";
-    }
-
     // 2. Registrar ganador de una partida (Solo de juegos que YA tenemos)
-    elseif ($accion === 'registrar_victoria') {
+    if ($accion === 'registrar_victoria') {
         $juegoSeleccionado = isset($_POST['NombreJuego']) ? trim($_POST['NombreJuego']) : '';
         $personaGanadora = isset($_POST['username']) ? trim($_POST['username']) : '';
 
@@ -42,11 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtIns = $pdo->prepare("INSERT INTO Victoria (username, NombreJuego, fecha_victoria) VALUES (?, ?, NOW())");
                 $stmtIns->execute([$personaGanadora, $juegoSeleccionado]);
 
-                // Asegurar que el ganador figure inscrito en el leaderboard
-                $stmtUpdP = $pdo->prepare("UPDATE Persona SET inscrito_leaderboard = 1 WHERE username = ?");
-                $stmtUpdP->execute([$personaGanadora]);
-
-                $mensajeExito = "Se ha registrado la victoria de «{$personaRow['NombrePersona']}» en el juego «{$juegoSeleccionado}».";
+                $mensajeExito = "Victoria registrada para «{$personaRow['NombrePersona']}» en «{$juegoSeleccionado}».";
             }
         }
     }
@@ -57,31 +45,29 @@ $stmtJuegosTenemos = $pdo->query("SELECT NombreJuego FROM Juego WHERE lo_tenemos
 $juegosDisponibles = $stmtJuegosTenemos->fetchAll();
 
 // Obtener todas las personas de la base de datos para poder asignar ganador
-$stmtPersonas = $pdo->query("SELECT username, NombrePersona, inscrito_leaderboard FROM Persona ORDER BY NombrePersona ASC");
+$stmtPersonas = $pdo->query("SELECT username, NombrePersona FROM Persona ORDER BY NombrePersona ASC");
 $todasLasPersonas = $stmtPersonas->fetchAll();
 
 // Filtro de juego activo (por GET)
 $filtroJuego = isset($_GET['juego']) ? trim($_GET['juego']) : '';
 
-// Construir consulta del Leaderboard
+// Construir consulta del Leaderboard (Todos los usuarios aparecen automáticamente)
 if ($filtroJuego !== '') {
     $stmtRanking = $pdo->prepare("
         SELECT p.username, p.NombrePersona, COUNT(v.id_victoria) AS total_victorias
         FROM Persona p
         LEFT JOIN Victoria v ON p.username = v.username AND v.NombreJuego = ?
-        WHERE p.inscrito_leaderboard = 1
         GROUP BY p.username, p.NombrePersona
         ORDER BY total_victorias DESC, p.NombrePersona ASC
     ");
     $stmtRanking->execute([$filtroJuego]);
     $ranking = $stmtRanking->fetchAll();
 } else {
-    // En el Ranking Global contabilizamos victorias de juegos que tenemos
     $stmtRanking = $pdo->query("
-        SELECT p.username, p.NombrePersona, COUNT(v.id_victoria) AS total_victorias
+        SELECT p.username, p.NombrePersona, COUNT(j.NombreJuego) AS total_victorias
         FROM Persona p
         LEFT JOIN Victoria v ON p.username = v.username
-        WHERE p.inscrito_leaderboard = 1
+        LEFT JOIN Juego j ON v.NombreJuego = j.NombreJuego AND j.lo_tenemos = 1
         GROUP BY p.username, p.NombrePersona
         ORDER BY total_victorias DESC, p.NombrePersona ASC
     ");
@@ -133,64 +119,43 @@ if ($filtroJuego !== '') {
         <div class="alerta alerta-exito"><?php echo h($mensajeExito); ?></div>
     <?php endif; ?>
 
-    <div class="grid-dos-columnas">
-        <!-- Inscripción al Leaderboard -->
-        <section class="pergamino">
-            <h2 class="seccion-titulo">Inscripción de Contendientes</h2>
-            <p style="margin-bottom:14px;">
-                Todos los parroquianos pueden inscribirse en el Tablón de Campeones para aparecer en la clasificación oficial (incluso antes de lograr su primera victoria).
-            </p>
-            <?php if ((int)$_SESSION['inscrito_leaderboard'] === 1): ?>
-                <div class="pergamino-secundario">
-                    <span class="etiqueta etiqueta-disponible">Inscrito en el Leaderboard</span>
-                    <p style="margin-top:8px;">Tu nombre ya figura en el Tablón de Campeones de la Taberna.</p>
+    <!-- Asignar Ganador de una Partida -->
+    <section class="pergamino">
+        <h2 class="seccion-titulo">Anotar Ganador de Partida</h2>
+        <?php if (count($juegosDisponibles) === 0): ?>
+            <p style="font-style:italic;">No hay juegos marcados como «Ya lo tenemos».</p>
+        <?php else: ?>
+            <form method="POST" action="leaderboard.php" class="grid-tres-columnas" style="align-items:end;">
+                <input type="hidden" name="accion" value="registrar_victoria">
+
+                <div class="grupo-form" style="margin-bottom:0;">
+                    <label for="select_juego_victoria">Juego:</label>
+                    <select id="select_juego_victoria" name="NombreJuego" class="select-taberna" required>
+                        <option value="">-- Selecciona un juego --</option>
+                        <?php foreach ($juegosDisponibles as $jd): ?>
+                            <option value="<?php echo h($jd['NombreJuego']); ?>"><?php echo h($jd['NombreJuego']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
-            <?php else: ?>
-                <form method="POST" action="leaderboard.php">
-                    <input type="hidden" name="accion" value="inscribirme">
-                    <button type="submit" class="btn btn-exito">Inscribirme en el Leaderboard</button>
-                </form>
-            <?php endif; ?>
-        </section>
 
-        <!-- Asignar Ganador de una Partida -->
-        <section class="pergamino">
-            <h2 class="seccion-titulo">Anotar Ganador de Partida</h2>
-            <?php if (count($juegosDisponibles) === 0): ?>
-                <p style="font-style:italic;">
-                    No hay juegos marcados como «Ya lo tenemos» en la taberna. Registra o marca al menos un juego como disponible en la sección de Juegos para poder anotar partidas ganadas.
-                </p>
-            <?php else: ?>
-                <form method="POST" action="leaderboard.php">
-                    <input type="hidden" name="accion" value="registrar_victoria">
+                <div class="grupo-form" style="margin-bottom:0;">
+                    <label for="select_persona_victoria">Ganador:</label>
+                    <select id="select_persona_victoria" name="username" class="select-taberna" required>
+                        <option value="">-- Selecciona al ganador --</option>
+                        <?php foreach ($todasLasPersonas as $per): ?>
+                            <option value="<?php echo h($per['username']); ?>">
+                                <?php echo h($per['NombrePersona']); ?> (<?php echo h($per['username']); ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
 
-                    <div class="grupo-form">
-                        <label for="select_juego_victoria">Juego Disputado (Solo juegos que ya tenemos):</label>
-                        <select id="select_juego_victoria" name="NombreJuego" class="select-taberna" required>
-                            <option value="">-- Selecciona un juego de la taberna --</option>
-                            <?php foreach ($juegosDisponibles as $jd): ?>
-                                <option value="<?php echo h($jd['NombreJuego']); ?>"><?php echo h($jd['NombreJuego']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="grupo-form">
-                        <label for="select_persona_victoria">Persona Ganadora:</label>
-                        <select id="select_persona_victoria" name="username" class="select-taberna" required>
-                            <option value="">-- Selecciona al ganador --</option>
-                            <?php foreach ($todasLasPersonas as $per): ?>
-                                <option value="<?php echo h($per['username']); ?>">
-                                    <?php echo h($per['NombrePersona']); ?> (<?php echo h($per['username']); ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <button type="submit" class="btn btn-primario">Asignar como Ganador</button>
-                </form>
-            <?php endif; ?>
-        </section>
-    </div>
+                <div>
+                    <button type="submit" class="btn btn-primario" style="width:100%;">Asignar como Ganador</button>
+                </div>
+            </form>
+        <?php endif; ?>
+    </section>
 
     <!-- Clasificación y Filtro por Juego -->
     <section class="pergamino">
@@ -205,9 +170,9 @@ if ($filtroJuego !== '') {
                 </h2>
             </div>
 
-            <form method="GET" action="leaderboard.php" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <label for="filtro_juego" style="font-weight:bold;">Filtrar Leaderboard:</label>
-                <select id="filtro_juego" name="juego" class="select-taberna" style="width:auto; min-width:220px;" onchange="this.form.submit()">
+            <form method="GET" action="leaderboard.php" class="barra-filtro-leaderboard">
+                <label for="filtro_juego" style="font-weight:bold;">Juego:</label>
+                <select id="filtro_juego" name="juego" class="select-taberna" onchange="this.form.submit()">
                     <option value="">-- Todos los juegos (Global) --</option>
                     <?php foreach ($juegosDisponibles as $jd): ?>
                         <option value="<?php echo h($jd['NombreJuego']); ?>" <?php echo ($filtroJuego === $jd['NombreJuego']) ? 'selected' : ''; ?>>
@@ -215,9 +180,9 @@ if ($filtroJuego !== '') {
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <button type="submit" class="btn btn-bronce btn-pequeno">Aplicar</button>
+                <button type="submit" class="btn btn-bronce btn-pequeno">Filtrar</button>
                 <?php if ($filtroJuego !== ''): ?>
-                    <a href="leaderboard.php" class="btn btn-pequeno">Ver Global</a>
+                    <a href="leaderboard.php" class="btn btn-pequeno">Ver Todos</a>
                 <?php endif; ?>
             </form>
         </div>

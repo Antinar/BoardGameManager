@@ -492,3 +492,180 @@ body {
     color: #8c2d19;
     display: block;
 }
+
+/* =========================================================================
+   OPTIMIZACIÓN RESPONSIVE PARA MÓVILES Y TABLETS
+   ========================================================================= */
+.tabla-contenedor {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+    body {
+        padding-bottom: 24px;
+    }
+
+    .taberna-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        padding: 14px 12px;
+        gap: 10px;
+    }
+
+    .taberna-titulo {
+        font-size: 1.35rem;
+    }
+
+    .taberna-usuario-bloque {
+        justify-content: space-between;
+        width: 100%;
+        padding: 8px 10px;
+        font-size: 0.88rem;
+    }
+
+    /* Navegación en cuadrícula de 2 columnas cómoda en móvil */
+    .taberna-nav {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        padding: 6px;
+        gap: 6px;
+    }
+
+    .nav-enlace {
+        text-align: center;
+        padding: 10px 8px;
+        font-size: 0.9rem;
+        border: 2px solid #4a3219;
+    }
+
+    .contenedor-principal {
+        margin: 14px auto;
+        padding: 0 10px;
+    }
+
+    .pergamino {
+        padding: 14px 12px;
+        margin-bottom: 16px;
+    }
+
+    .seccion-titulo {
+        font-size: 1.2rem;
+    }
+
+    .grid-dos-columnas,
+    .grid-tres-columnas,
+    .grid-juegos-votacion {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    /* Evita auto-zoom en iOS y desbordamiento horizontal */
+    .input-taberna,
+    .select-taberna {
+        font-size: 16px;
+        padding: 10px;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 11px 14px;
+    }
+
+    .taberna-usuario-bloque .btn {
+        width: auto;
+        padding: 6px 10px;
+    }
+
+    .pestanas-barra {
+        flex-direction: column;
+        border-bottom: none;
+    }
+
+    .pestana-btn {
+        width: 100%;
+        border: 2px solid #4a3219;
+    }
+
+    .votacion-cabecera {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .tabla-taberna th,
+    .tabla-taberna td {
+        padding: 8px;
+        font-size: 0.88rem;
+    }
+
+    .tabla-taberna .input-taberna,
+    .tabla-taberna .select-taberna {
+        min-width: 130px !important;
+    }
+
+    .img-juego-tabla {
+        width: 64px;
+        height: 64px;
+    }
+}
+
+/* Barras de filtro y acciones adaptables */
+.barra-titulo-filtro {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.buscador-bloque {
+    width: 280px;
+    max-width: 100%;
+}
+
+.barra-filtro-leaderboard {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.barra-filtro-leaderboard .select-taberna {
+    width: auto;
+    min-width: 200px;
+}
+
+.acciones-admin-celda {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .barra-titulo-filtro,
+    .barra-filtro-leaderboard {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .buscador-bloque,
+    .barra-filtro-leaderboard .select-taberna {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .acciones-admin-celda {
+        flex-direction: column;
+    }
+
+    .acciones-admin-celda .btn,
+    .acciones-admin-celda form {
+        width: 100%;
+    }
+}
