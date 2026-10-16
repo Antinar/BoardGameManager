@@ -1,0 +1,494 @@
+/* =========================================================================
+   HOJA DE ESTILOS: LA TABERNA DEL DADO DE HIERRO
+   Estética tradicional de madera oscura, hierro forjado y pergamino mate.
+   Sin sombras difuminadas, sin gradientes brillantes ni efectos modernos.
+   ========================================================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: #23170f;
+    color: #1f140e;
+    font-family: Georgia, 'Times New Roman', 'Palatino Linotype', serif;
+    line-height: 1.5;
+    padding-bottom: 40px;
+}
+
+/* Cabecera y Navegación */
+.taberna-header {
+    background-color: #362417;
+    color: #e8dcb8;
+    border-bottom: 3px solid #1a110b;
+    padding: 18px 28px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.taberna-titulo {
+    font-size: 1.9rem;
+    color: #e8dcb8;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.taberna-subtitulo {
+    font-size: 0.95rem;
+    color: #dfd1a7;
+    font-style: italic;
+}
+
+.taberna-usuario-bloque {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    background-color: #23170f;
+    border: 2px solid #4a3219;
+    padding: 8px 14px;
+}
+
+.usuario-etiqueta {
+    color: #e8dcb8;
+    font-size: 0.95rem;
+}
+
+.insignia-rol {
+    color: #a67c2e;
+    font-weight: bold;
+    margin-left: 4px;
+}
+
+.taberna-nav {
+    background-color: #2b1d12;
+    border-bottom: 3px solid #4a3219;
+    padding: 0 28px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.nav-enlace {
+    display: inline-block;
+    color: #e8dcb8;
+    text-decoration: none;
+    padding: 12px 18px;
+    font-weight: bold;
+    border-right: 2px solid #4a3219;
+    border-left: 2px solid transparent;
+    background-color: #2b1d12;
+}
+
+.nav-enlace:hover {
+    background-color: #4a3219;
+    color: #ffffff;
+}
+
+.nav-enlace.activo {
+    background-color: #e8dcb8;
+    color: #23170f;
+    border-top: 3px solid #a67c2e;
+}
+
+.nav-enlace.nav-admin {
+    background-color: #421c14;
+    color: #f3e8c6;
+}
+
+.nav-enlace.nav-admin.activo {
+    background-color: #8c2d19;
+    color: #ffffff;
+}
+
+/* Contenedor Principal y Pergaminos */
+.contenedor-principal {
+    max-width: 1220px;
+    margin: 26px auto;
+    padding: 0 18px;
+}
+
+.pergamino {
+    background-color: #e8dcb8;
+    border: 3px solid #4a3219;
+    outline: 2px solid #1a110b;
+    padding: 22px;
+    margin-bottom: 26px;
+    border-radius: 2px;
+}
+
+.pergamino-secundario {
+    background-color: #dfd1a7;
+    border: 2px solid #4a3219;
+    padding: 16px;
+    margin-bottom: 18px;
+    border-radius: 2px;
+}
+
+.seccion-titulo {
+    font-size: 1.5rem;
+    color: #23170f;
+    border-bottom: 2px solid #4a3219;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+}
+
+.seccion-subtitulo {
+    font-size: 1.2rem;
+    color: #362417;
+    border-bottom: 1px solid #4a3219;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+}
+
+/* Mensajes y Alertas */
+.alerta {
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    border: 2px solid #1a110b;
+    font-weight: bold;
+}
+
+.alerta-exito {
+    background-color: #c9dfc4;
+    border-color: #2e5a27;
+    color: #1b3816;
+}
+
+.alerta-error {
+    background-color: #e6c3bc;
+    border-color: #8c2d19;
+    color: #5c190b;
+}
+
+/* Rejillas de diseño */
+.grid-dos-columnas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.grid-tres-columnas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+}
+
+@media (max-width: 850px) {
+    .grid-dos-columnas {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Formularios */
+.grupo-form {
+    margin-bottom: 14px;
+}
+
+.grupo-form label {
+    display: block;
+    font-weight: bold;
+    color: #23170f;
+    margin-bottom: 5px;
+}
+
+.input-taberna,
+.select-taberna {
+    width: 100%;
+    padding: 8px 10px;
+    background-color: #f7f1df;
+    border: 2px solid #4a3219;
+    color: #1f140e;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1rem;
+    border-radius: 2px;
+}
+
+.input-taberna:focus,
+.select-taberna:focus {
+    outline: none;
+    border-color: #8c2d19;
+    background-color: #ffffff;
+}
+
+.radio-grupo {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 6px 0;
+}
+
+.radio-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+/* Botones Planos Rústicos */
+.btn {
+    display: inline-block;
+    padding: 9px 16px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.95rem;
+    font-weight: bold;
+    text-decoration: none;
+    cursor: pointer;
+    border: 2px solid #1a110b;
+    background-color: #4a3219;
+    color: #e8dcb8;
+    border-radius: 2px;
+    text-align: center;
+}
+
+.btn:hover {
+    background-color: #362417;
+    color: #ffffff;
+}
+
+.btn-primario {
+    background-color: #8c2d19;
+    color: #f7f1df;
+    border-color: #1a110b;
+}
+
+.btn-primario:hover {
+    background-color: #692010;
+}
+
+.btn-exito {
+    background-color: #2e5a27;
+    color: #f7f1df;
+    border-color: #1a110b;
+}
+
+.btn-exito:hover {
+    background-color: #20401b;
+}
+
+.btn-bronce {
+    background-color: #a67c2e;
+    color: #1a110b;
+    border-color: #1a110b;
+}
+
+.btn-bronce:hover {
+    background-color: #876321;
+    color: #ffffff;
+}
+
+.btn-peligro {
+    background-color: #6b1d14;
+    color: #f7f1df;
+    border-color: #1a110b;
+}
+
+.btn-peligro:hover {
+    background-color: #47110b;
+}
+
+.btn-pequeno {
+    padding: 5px 10px;
+    font-size: 0.85rem;
+}
+
+/* Tablas de Registro de Taberna */
+.tabla-contenedor {
+    overflow-x: auto;
+}
+
+.tabla-taberna {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #f2e8c9;
+    border: 2px solid #362417;
+    margin-top: 8px;
+}
+
+.tabla-taberna th {
+    background-color: #362417;
+    color: #e8dcb8;
+    text-align: left;
+    padding: 10px 12px;
+    border: 2px solid #1a110b;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+}
+
+.tabla-taberna td {
+    padding: 10px 12px;
+    border: 1px solid #4a3219;
+    vertical-align: middle;
+    color: #1f140e;
+}
+
+.tabla-taberna tr:nth-child(even) td {
+    background-color: #e8dcb8;
+}
+
+.img-juego-tabla {
+    width: 85px;
+    height: 85px;
+    object-fit: cover;
+    border: 2px solid #362417;
+    background-color: #23170f;
+    display: block;
+}
+
+.preview-contenedor {
+    margin-top: 8px;
+    display: none;
+}
+
+.preview-contenedor img {
+    max-width: 140px;
+    max-height: 140px;
+    border: 2px solid #362419;
+}
+
+/* Etiquetas e Insignias */
+.etiqueta {
+    display: inline-block;
+    padding: 3px 8px;
+    font-size: 0.82rem;
+    font-weight: bold;
+    border: 1px solid #1a110b;
+    border-radius: 2px;
+}
+
+.etiqueta-disponible {
+    background-color: #2e5a27;
+    color: #f7f1df;
+}
+
+.etiqueta-pendiente {
+    background-color: #8c2d19;
+    color: #f7f1df;
+}
+
+.etiqueta-bronce {
+    background-color: #a67c2e;
+    color: #1a110b;
+}
+
+.lista-interesados {
+    list-style: square;
+    margin-left: 18px;
+    font-size: 0.92rem;
+}
+
+/* Tarjetas de Votación y Regla de Resaltado */
+.votacion-bloque {
+    background-color: #dfd1a7;
+    border: 3px solid #362417;
+    padding: 18px;
+    margin-bottom: 24px;
+}
+
+.votacion-cabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    border-bottom: 2px solid #4a3219;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+    gap: 10px;
+}
+
+.grid-juegos-votacion {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.tarjeta-juego-voto {
+    background-color: #e8dcb8;
+    border: 2px solid #4a3219;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+/* REGLA DE RESALTADO CONDICIONAL EN VOTACIONES */
+.tarjeta-juego-voto.juego-resaltado {
+    background-color: #f7ecc9;
+    border: 3px solid #a67c2e;
+    outline: 2px solid #8c2d19;
+}
+
+.insignia-resaltado {
+    background-color: #8c2d19;
+    color: #f7f1df;
+    font-size: 0.8rem;
+    font-weight: bold;
+    padding: 4px 8px;
+    text-transform: uppercase;
+    border: 1px solid #1a110b;
+    text-align: center;
+}
+
+.tarjeta-juego-voto img {
+    width: 100%;
+    height: 135px;
+    object-fit: cover;
+    border: 2px solid #362417;
+}
+
+/* Login y pestañas */
+.login-envoltorio {
+    max-width: 560px;
+    margin: 50px auto;
+    padding: 0 16px;
+}
+
+.pestanas-barra {
+    display: flex;
+    border-bottom: 2px solid #4a3219;
+    margin-bottom: 18px;
+    gap: 6px;
+}
+
+.pestana-btn {
+    padding: 10px 18px;
+    background-color: #cfc096;
+    border: 2px solid #4a3219;
+    border-bottom: none;
+    font-family: Georgia, serif;
+    font-weight: bold;
+    cursor: pointer;
+    color: #23170f;
+}
+
+.pestana-btn.activa {
+    background-color: #8c2d19;
+    color: #f7f1df;
+}
+
+.panel-oculto {
+    display: none;
+}
+
+.estadistica-caja {
+    background-color: #dfd1a7;
+    border: 2px solid #4a3219;
+    padding: 16px;
+    text-align: center;
+}
+
+.estadistica-numero {
+    font-size: 2.1rem;
+    font-weight: bold;
+    color: #8c2d19;
+    display: block;
+}
