@@ -1,5 +1,5 @@
 /**
- * Lógica de interfaz de cliente para La Taberna del Dado de Hierro
+ * Lógica de interfaz de cliente para La Taberna de las Gatitas Jugonas
  */
 document.addEventListener('DOMContentLoaded', function () {
 

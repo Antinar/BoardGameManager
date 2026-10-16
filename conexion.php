@@ -137,7 +137,7 @@ function renderizarNavegacion($paginaActiva = '') {
     ?>
     <header class="taberna-header">
         <div class="taberna-titulo-bloque">
-            <h1 class="taberna-titulo">La Taberna del Dado de Hierro</h1>
+            <h1 class="taberna-titulo">La Taberna de las Gatitas Jugonas</h1>
         </div>
         <div class="taberna-usuario-bloque">
             <span class="usuario-etiqueta">
