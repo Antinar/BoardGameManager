@@ -28,7 +28,7 @@ $ultimaVictoria = $stmtUltima->fetch();
 </head>
 <body>
 
-<?php renderizarNavegacion('inicio'); ?>
+<?php renderizarNavegacion('index'); ?>
 
 <main class="contenedor-principal">
     <section class="pergamino">

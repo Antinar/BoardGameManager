@@ -63,7 +63,7 @@ function requerirLogin(PDO $pdo) {
 function requerirAdmin(PDO $pdo) {
     requerirLogin($pdo);
     if ($_SESSION['rol'] !== 'admin') {
-        header('Location: inicio.php');
+        header('Location: index.php');
         exit;
     }
 }
