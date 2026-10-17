@@ -106,15 +106,13 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
         <div class="barra-titulo-filtro">
 
             <h2 class="seccion-titulo">Juegos que NO Tenemos</h2>
-            <br>
-            <p>
-                Lista de juegos de interes para el grupo. Puedes apuntarte en los que te interese.
-            </p>
-
             <div class="buscador-bloque">
                 <input type="text" class="input-taberna" placeholder="Filtrar juegos o interesados..." data-table-filter="tabla-juegos-deseados">
             </div>
         </div>
+        <p>
+            Lista de juegos de interes para el grupo. Puedes apuntarte en los que te interese.
+        </p>
 
         <?php if (count($juegosNoTenemos) === 0): ?>
             <p style="font-style:italic; padding:12px 0;">
