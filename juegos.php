@@ -106,6 +106,7 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
         <div class="barra-titulo-filtro">
 
             <h2 class="seccion-titulo">Juegos que NO Tenemos</h2>
+            <br>
             <p>
                 Lista de juegos de interes para el grupo. Puedes apuntarte en los que te interese.
             </p>
