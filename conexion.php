@@ -4,10 +4,10 @@ session_start();
 // =========================================================================
 // CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS (INFINITYFREE / LOCAL)
 // =========================================================================
-$db_host = getenv('DB_HOST') ?: 'localhost';               // En InfinityFree ej: sqlXXX.infinityfree.com
-$db_name = getenv('DB_NAME') ?: 'if0_XXXXXXX_taberna';     // Nombre de tu base de datos en phpMyAdmin
-$db_user = getenv('DB_USER') ?: 'root';                    // En InfinityFree ej: if0_XXXXXXX
-$db_pass = getenv('DB_PASS') ?: '';                        // Contraseña de tu cuenta de hosting
+$db_host = 'sql209.infinityfree.com';               // En InfinityFree ej: sqlXXX.infinityfree.com
+$db_name = 'if0_43192957_gatarras';     // Nombre de tu base de datos en phpMyAdmin
+$db_user = 'if0_43192957';                    // En InfinityFree ej: if0_XXXXXXX
+$db_pass = 'oxDMlEqYAbP';                        // Contraseña de tu cuenta de hosting
 
 try {
     $pdo = new PDO(
