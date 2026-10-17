@@ -104,9 +104,12 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
     <!-- Tabla exclusiva de juegos que NO tenemos -->
     <section class="pergamino">
         <div class="barra-titulo-filtro">
-            <h2 class="seccion-titulo" style="margin-bottom:0; border-bottom:none;">
-                Juegos que NO Tenemos
-            </h2>
+
+            <h2 class="seccion-titulo">Juegos que NO Tenemos</h2>
+            <p>
+                Lista de juegos de interes para el grupo. Puedes apuntarte en los que te interese.
+            </p>
+
             <div class="buscador-bloque">
                 <input type="text" class="input-taberna" placeholder="Filtrar juegos o interesados..." data-table-filter="tabla-juegos-deseados">
             </div>
@@ -203,7 +206,7 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
         <p>
             Si algun juego que tenemos por algun motivo queremos que esté en interesado en vez, se puede <strong>cambiar</strong> desde aqui.
         </p>
-        <a href="alta_juego.php" class="btn btn-primario">+ Subir Nuevo Juego</a>
+        <!-- <a href="alta_juego.php" class="btn btn-primario">+ Subir Nuevo Juego</a> -->
 
         <?php if (count($juegosSiTenemos) > 0): ?>
             <form method="POST" action="juegos.php" class="form-inline-movil" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
