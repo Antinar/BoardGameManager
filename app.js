@@ -89,4 +89,18 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+    // 5. Desplegar / Contraer bloques de votación
+    var cabecerasVotacion = document.querySelectorAll('[data-toggle-votacion]');
+    cabecerasVotacion.forEach(function (cabecera) {
+        cabecera.addEventListener('click', function () {
+            var bloque = cabecera.closest('.votacion-bloque');
+            if (!bloque) return;
+
+            var estaContraida = bloque.classList.toggle('contraida');
+            var btnTexto = cabecera.querySelector('.btn-toggle-texto');
+            if (btnTexto) {
+                btnTexto.textContent = estaContraida ? 'Desplegar' : 'Contraer';
+            }
+        });
+    });
 });
