@@ -213,9 +213,9 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
     <?php endif; ?>
 
     <section class="pergamino">
-        <h2 class="seccion-titulo">Panel de Administración Total (CRUD Completo)</h2>
+        <h2 class="seccion-titulo">Panel de Administración</h2>
         <p>
-            Desde este panel puedes inspeccionar, modificar o eliminar cualquier registro de las 6 tablas del sistema. Gracias a las restricciones <code>ON UPDATE CASCADE</code> y <code>ON DELETE CASCADE</code>, cualquier cambio en el <code>username</code> de una persona o en el <code>NombreJuego</code> se actualiza automáticamente en toda la base de datos.
+            Desde este panel puedes inspeccionar, modificar o eliminar cualquier registro de las 6 tablas del sistema.
         </p>
     </section>
 
@@ -277,7 +277,7 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
     
     <!-- 2. GESTIÓN DE JUEGOS -->
     <section class="pergamino">
-        <h3 class="seccion-titulo">2. Tabla Juego (Juegos Registrados: <?php echo count($juegos); ?>)</h3>
+        <h3 class="seccion-titulo">2. Juegos Registrados (<?php echo count($juegos); ?>)</h3>
         <div class="tabla-contenedor">
             <table class="tabla-taberna">
                 <thead>
@@ -334,7 +334,7 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
 
     <!-- 3. GESTIÓN DE PERSONA_JUEGO (INTERESADOS) -->
     <section class="pergamino">
-        <h3 class="seccion-titulo">3. Tabla Persona_Juego (Interesados en Juegos: <?php echo count($relacionesPJ); ?>)</h3>
+        <h3 class="seccion-titulo">3. Interesados en Juegos (<?php echo count($relacionesPJ); ?>)</h3>
 
         <form method="POST" action="admin.php" class="pergamino-secundario" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
             <input type="hidden" name="entidad" value="persona_juego">
@@ -362,8 +362,8 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
             <table class="tabla-taberna">
                 <thead>
                     <tr>
-                        <th>Username (FK)</th>
-                        <th>NombreJuego (FK)</th>
+                        <th>Username</th>
+                        <th>NombreJuego</th>
                         <th style="width:210px;">Acciones</th>
                     </tr>
                 </thead>
@@ -416,15 +416,15 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
 
     <!-- 4. GESTIÓN DE VICTORIAS -->
     <section class="pergamino">
-        <h3 class="seccion-titulo">4. Tabla Victoria (Partidas Ganadas: <?php echo count($victorias); ?>)</h3>
+        <h3 class="seccion-titulo">4. Partidas Ganadas (<?php echo count($victorias); ?>)</h3>
         <div class="tabla-contenedor">
             <table class="tabla-taberna">
                 <thead>
                     <tr>
                         <th style="width:70px;">ID</th>
-                        <th>Ganador (username)</th>
-                        <th>Juego (NombreJuego)</th>
-                        <th>Fecha y Hora (YYYY-MM-DD HH:MM:SS)</th>
+                        <th>Ganador</th>
+                        <th>Juego</th>
+                        <th>Fecha y Hora</th>
                         <th style="width:210px;">Acciones</th>
                     </tr>
                 </thead>
@@ -444,7 +444,7 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
                                 <select form="<?php echo $formIdV; ?>" name="username" class="select-taberna">
                                     <?php foreach ($personas as $p): ?>
                                         <option value="<?php echo h($p['username']); ?>" <?php echo $p['username'] === $v['username'] ? 'selected' : ''; ?>>
-                                            <?php echo h($p['username']); ?> (<?php echo h($p['NombrePersona']); ?>)
+                                            <?php echo h($p['NombrePersona']); ?> (<?php echo h($p['username']); ?>)
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -554,7 +554,7 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
                     <tr>
                         <th style="width:70px;">ID Voto</th>
                         <th>Votación (ID)</th>
-                        <th>Usuario (username)</th>
+                        <th>Usuario</th>
                         <th>Juego Votado</th>
                         <th style="width:210px;">Acciones</th>
                     </tr>

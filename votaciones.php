@@ -149,6 +149,9 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
     <!-- Formulario para abrir una nueva votación -->
     <section class="pergamino">
         <h2 class="seccion-titulo">Convocar Nueva Votación de Juegos</h2>
+        <p>
+            Desde este panel puedes crear una nueva votación de juegos para ver que se elige en un dia de juegos de mesa. La fecha limite elimina de forma automatica la votación cuando pasa el plazo. También es importante ver si se podrá votar a 1 o más de un juego.
+        </p>
         <form method="POST" action="votaciones.php" class="grid-tres-columnas" style="align-items:end;">
             <input type="hidden" name="accion" value="crear_votacion">
 
@@ -158,7 +161,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
             </div>
 
             <div class="grupo-form" style="margin-bottom:0;">
-                <label for="fecha_limite">Día Límite (Desaparece tras esta fecha):</label>
+                <label for="fecha_limite">Día Límite:</label>
                 <input type="date" id="fecha_limite" name="fecha_limite" class="input-taberna" required min="<?php echo date('Y-m-d'); ?>" value="<?php echo date('Y-m-d', strtotime('+7 days')); ?>">
             </div>
 
@@ -179,7 +182,9 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
     <!-- Listado de Votaciones Activas -->
     <section class="pergamino">
         <h2 class="seccion-titulo">Votaciones Activas en la Taberna</h2>
-
+        <p>
+            Desde aqui podrás votar en las diferentes votaciones activas que hayan.
+        </p>
         <?php if (count($juegosQueTenemos) === 0): ?>
             <div class="alerta alerta-error">
                 No hay ningún juego marcado como «Ya lo tenemos». Registra o cambia el estado de algún juego en la página de Juegos para poder votarlo.

@@ -101,29 +101,11 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
         <div class="alerta alerta-exito"><?php echo h($mensajeExito); ?></div>
     <?php endif; ?>
 
-    <section class="pergamino" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-        <a href="alta_juego.php" class="btn btn-primario">+ Subir Nuevo Juego</a>
-
-        <?php if (count($juegosSiTenemos) > 0): ?>
-            <form method="POST" action="juegos.php" class="form-inline-movil" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <input type="hidden" name="accion" value="cambiar_estado_tenencia">
-                <input type="hidden" name="nuevo_estado" value="0">
-                <label for="juego_revertir" style="font-weight:bold;">Pasar a «No lo tenemos»:</label>
-                <select id="juego_revertir" name="NombreJuego" class="select-taberna" style="width:auto;" required>
-                    <?php foreach ($juegosSiTenemos as $jst): ?>
-                        <option value="<?php echo h($jst['NombreJuego']); ?>"><?php echo h($jst['NombreJuego']); ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <button type="submit" class="btn btn-bronce btn-pequeno">Cambiar</button>
-            </form>
-        <?php endif; ?>
-    </section>
-
     <!-- Tabla exclusiva de juegos que NO tenemos -->
     <section class="pergamino">
         <div class="barra-titulo-filtro">
             <h2 class="seccion-titulo" style="margin-bottom:0; border-bottom:none;">
-                Juegos que NO Tenemos (Interesados)
+                Juegos que NO Tenemos
             </h2>
             <div class="buscador-bloque">
                 <input type="text" class="input-taberna" placeholder="Filtrar juegos o interesados..." data-table-filter="tabla-juegos-deseados">
@@ -132,7 +114,7 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
 
         <?php if (count($juegosNoTenemos) === 0): ?>
             <p style="font-style:italic; padding:12px 0;">
-                No hay juegos pendientes en la lista de deseados. Registra uno arriba indicando «No lo tenemos».
+                No hay juegos pendientes en la lista de deseados. Registra uno en la pestaña de «Subir Juego».
             </p>
         <?php else: ?>
             <div class="tabla-contenedor">
@@ -141,7 +123,7 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
                         <tr>
                             <th style="width:110px;">Imagen</th>
                             <th>Nombre del Juego</th>
-                            <th>Parroquianos Interesados</th>
+                            <th>Miembros Interesados</th>
                             <th style="width:220px;">Interés</th>
                             <th style="width:210px;">Disponibilidad</th>
                         </tr>
@@ -213,6 +195,28 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
                     </tbody>
                 </table>
             </div>
+        <?php endif; ?>
+    </section>
+
+    <section class="pergamino" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <h2 class="seccion-titulo">Poner juego en interes</h2>
+        <p>
+            Si algun juego que tenemos por algun motivo queremos que esté en interesado en vez, se puede <strong>cambiar</strong> desde aqui.
+        </p>
+        <a href="alta_juego.php" class="btn btn-primario">+ Subir Nuevo Juego</a>
+
+        <?php if (count($juegosSiTenemos) > 0): ?>
+            <form method="POST" action="juegos.php" class="form-inline-movil" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <input type="hidden" name="accion" value="cambiar_estado_tenencia">
+                <input type="hidden" name="nuevo_estado" value="0">
+                <label for="juego_revertir" style="font-weight:bold;">Pasar a «No lo tenemos»:</label>
+                <select id="juego_revertir" name="NombreJuego" class="select-taberna" style="width:auto;" required>
+                    <?php foreach ($juegosSiTenemos as $jst): ?>
+                        <option value="<?php echo h($jst['NombreJuego']); ?>"><?php echo h($jst['NombreJuego']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="btn btn-bronce btn-pequeno">Cambiar</button>
+            </form>
         <?php endif; ?>
     </section>
 </main>

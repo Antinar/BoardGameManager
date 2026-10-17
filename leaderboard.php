@@ -192,8 +192,8 @@ if ($filtroJuego !== '') {
                 <thead>
                     <tr>
                         <th style="width:90px;">Puesto</th>
-                        <th>Jugador (Nombre y Apellidos)</th>
-                        <th>Usuario (username)</th>
+                        <th>Jugador</th>
+                        <th>Usuario</th>
                         <th style="width:180px;">Victorias Acumuladas</th>
                     </tr>
                 </thead>
