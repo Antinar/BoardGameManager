@@ -1,7 +1,7 @@
 /* =========================================================================
-   HOJA DE ESTILOS: LA TABERNA DEL DADO DE HIERRO
+   HOJA DE ESTILOS: LA TABERNA DE LAS GATITAS JUGONAS
    Estética tradicional de madera oscura, hierro forjado y pergamino mate.
-   Sin sombras difuminadas, sin gradientes brillantes ni efectos modernos.
+   Cero gradientes brillantes, cero sombras difuminadas flotantes.
    ========================================================================= */
 
 * {
@@ -52,6 +52,7 @@ body {
     background-color: #23170f;
     border: 2px solid #4a3219;
     padding: 8px 14px;
+    border-radius: 2px;
 }
 
 .usuario-etiqueta {
@@ -153,6 +154,7 @@ body {
     margin-bottom: 20px;
     border: 2px solid #1a110b;
     font-weight: bold;
+    border-radius: 2px;
 }
 
 .alerta-exito {
@@ -350,7 +352,7 @@ body {
 .preview-contenedor img {
     max-width: 140px;
     max-height: 140px;
-    border: 2px solid #362419;
+    border: 2px solid #362417;
 }
 
 /* Etiquetas e Insignias */
@@ -390,6 +392,7 @@ body {
     border: 3px solid #362417;
     padding: 18px;
     margin-bottom: 24px;
+    border-radius: 2px;
 }
 
 .votacion-cabecera {
@@ -418,9 +421,9 @@ body {
     flex-direction: column;
     justify-content: space-between;
     gap: 8px;
+    border-radius: 2px;
 }
 
-/* REGLA DE RESALTADO CONDICIONAL EN VOTACIONES */
 .tarjeta-juego-voto.juego-resaltado {
     background-color: #f7ecc9;
     border: 3px solid #a67c2e;
@@ -440,12 +443,9 @@ body {
 
 .tarjeta-juego-voto img {
     width: 100%;
-    aspect-ratio: 1 / 1;
-    height: auto;
+    height: 135px;
     object-fit: cover;
     border: 2px solid #362417;
-    background-color: #23170f;
-    display: block;
 }
 
 /* Login y pestañas */
@@ -479,7 +479,7 @@ body {
 }
 
 .panel-oculto {
-    display: none;
+    display: none !important;
 }
 
 .estadistica-caja {
@@ -487,6 +487,7 @@ body {
     border: 2px solid #4a3219;
     padding: 16px;
     text-align: center;
+    border-radius: 2px;
 }
 
 .estadistica-numero {
@@ -497,243 +498,202 @@ body {
 }
 
 /* =========================================================================
-   OPTIMIZACIÓN RESPONSIVE PARA MÓVILES Y TABLETS
+   ESTILOS DE LA SECCIÓN LUDOTECA Y RESEÑAS (ludoteca.php)
    ========================================================================= */
-.tabla-contenedor {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
 
-@media (max-width: 768px) {
-    body {
-        padding-bottom: 24px;
-    }
-
-    .taberna-header {
-        flex-direction: column;
-        align-items: stretch;
-        text-align: center;
-        padding: 14px 12px;
-        gap: 10px;
-    }
-
-    .taberna-titulo {
-        font-size: 1.35rem;
-    }
-
-    .taberna-usuario-bloque {
-        justify-content: space-between;
-        width: 100%;
-        padding: 8px 10px;
-        font-size: 0.88rem;
-    }
-
-    /* Navegación en cuadrícula de 2 columnas cómoda en móvil */
-    .taberna-nav {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        padding: 6px;
-        gap: 6px;
-    }
-
-    .nav-enlace {
-        text-align: center;
-        padding: 10px 8px;
-        font-size: 0.9rem;
-        border: 2px solid #4a3219;
-    }
-
-    .contenedor-principal {
-        margin: 14px auto;
-        padding: 0 10px;
-    }
-
-    .pergamino {
-        padding: 14px 12px;
-        margin-bottom: 16px;
-    }
-
-    .seccion-titulo {
-        font-size: 1.2rem;
-    }
-
-    .grid-dos-columnas,
-    .grid-tres-columnas,
-    .grid-juegos-votacion {
-        grid-template-columns: 1fr;
-        gap: 14px;
-    }
-
-    /* Evita auto-zoom en iOS y desbordamiento horizontal */
-    .input-taberna,
-    .select-taberna {
-        font-size: 16px;
-        padding: 10px;
-        width: 100% !important;
-        min-width: 0 !important;
-    }
-
-    .btn {
-        width: 100%;
-        padding: 11px 14px;
-    }
-
-    .taberna-usuario-bloque .btn {
-        width: auto;
-        padding: 6px 10px;
-    }
-
-    .pestanas-barra {
-        flex-direction: column;
-        border-bottom: none;
-    }
-
-    .pestana-btn {
-        width: 100%;
-        border: 2px solid #4a3219;
-    }
-
-    .votacion-cabecera {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .tabla-taberna th,
-    .tabla-taberna td {
-        padding: 8px;
-        font-size: 0.88rem;
-    }
-
-    .tabla-taberna .input-taberna,
-    .tabla-taberna .select-taberna {
-        min-width: 130px !important;
-    }
-
-    .img-juego-tabla {
-        width: 64px;
-        height: 64px;
-    }
-}
-
-/* Barras de filtro y acciones adaptables */
-.barra-titulo-filtro {
+.ludoteca-cabecera-juego {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.buscador-bloque {
-    width: 280px;
-    max-width: 100%;
-}
-
-.barra-filtro-leaderboard {
-    display: flex;
     gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
+    border-bottom: 2px solid #4a3219;
+    padding-bottom: 10px;
 }
 
-.barra-filtro-leaderboard .select-taberna {
-    width: auto;
-    min-width: 200px;
+.visor-juego-contenedor {
+    background-color: #dfd1a7;
+    border: 2px solid #362417;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 2px;
 }
 
-.acciones-admin-celda {
+.visor-conmutador-barra {
     display: flex;
     gap: 6px;
-    flex-wrap: wrap;
+    margin-bottom: 12px;
+    border-bottom: 2px solid #4a3219;
+    padding-bottom: 8px;
 }
 
-@media (max-width: 768px) {
-    .barra-titulo-filtro,
-    .barra-filtro-leaderboard {
-        flex-direction: column;
-        align-items: stretch;
-        width: 100%;
-    }
-
-    .buscador-bloque,
-    .barra-filtro-leaderboard .select-taberna {
-        width: 100%;
-        min-width: 0;
-    }
-
-    .acciones-admin-celda {
-        flex-direction: column;
-    }
-
-    .acciones-admin-celda .btn,
-    .acciones-admin-celda form {
-        width: 100%;
-    }
-}
-
-/* =========================================================================
-   SCROLL EN TABLAS (A PARTIR DE ~10 FILAS) CON CABECERA FIJA
-   ========================================================================= */
-.tabla-contenedor {
-    width: 100%;
-    max-height: 620px; /* Altura aprox. de cabecera + 10 filas */
-    overflow-y: auto;
-    overflow-x: auto;
-    border: 2px solid #362417;
-    margin-top: 8px;
-    background-color: #f2e8c9;
-    -webkit-overflow-scrolling: touch;
-}
-
-.tabla-contenedor .tabla-taberna {
-    margin-top: 0;
-    border: none;
-}
-
-.tabla-contenedor .tabla-taberna thead th {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    background-color: #362417;
-    box-shadow: 0 2px 0 #1a110b;
-}
-
-/* =========================================================================
-   VOTACIONES COMPRIMIBLES Y TARJETAS MÁS ALARGADAS (1:1)
-   ========================================================================= */
-.votacion-cabecera.votacion-plegable {
+.btn-conmutador {
+    flex: 1;
+    padding: 8px 12px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.9rem;
+    font-weight: bold;
     cursor: pointer;
-    user-select: none;
+    background-color: #cfc096;
+    color: #23170f;
+    border: 2px solid #4a3219;
+    border-radius: 2px;
 }
 
-.votacion-cabecera.votacion-plegable:hover {
-    background-color: #d3c293;
+.btn-conmutador:hover {
+    background-color: #bfa975;
 }
 
-.votacion-bloque.contraida .votacion-cabecera {
-    border-bottom: none;
-    padding-bottom: 0;
-    margin-bottom: 0;
+.btn-conmutador.activa {
+    background-color: #362417;
+    color: #e8dcb8;
+    border-color: #1a110b;
 }
 
-.votacion-bloque.contraida .votacion-cuerpo {
-    display: none;
+.vista-imagen-juego {
+    text-align: center;
 }
 
-.indicador-plegado {
-    display: inline-block;
+.img-ludoteca-principal {
+    width: 100%;
+    max-height: 290px;
+    object-fit: contain;
+    background-color: #23170f;
+    border: 2px solid #362417;
+    display: block;
+    margin: 0 auto;
+}
+
+.visor-pie-nota {
+    font-size: 0.85rem;
+    color: #4a3219;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+.vista-estadisticas-juego {
+    background-color: #f2e8c9;
+    border: 2px solid #4a3219;
+    padding: 14px;
+    border-radius: 2px;
+}
+
+.estadistica-bloque-detalle {
+    background-color: #e8dcb8;
+    border: 1px solid #4a3219;
+    padding: 10px 12px;
+}
+
+.barra-progreso-rustica {
+    width: 100%;
+    height: 16px;
+    background-color: #cfc096;
+    border: 2px solid #362417;
+    margin-top: 6px;
+}
+
+.barra-relleno-si {
+    height: 100%;
+    background-color: #2e5a27;
+}
+
+.promedio-numero-grande {
+    font-size: 1.5rem;
     font-weight: bold;
     color: #8c2d19;
-    margin-right: 6px;
-    transition: transform 0.2s ease;
+    background-color: #f7f1df;
+    border: 2px solid #362417;
+    padding: 2px 10px;
 }
 
-.votacion-bloque:not(.contraida) .indicador-plegado {
-    transform: rotate(90deg);
+.lista-desglose-votos {
+    list-style: none;
+    font-size: 0.9rem;
 }
 
-.tarjeta-juego-voto {
-    min-height: 340px;
+.lista-desglose-votos li {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #cfc096;
+    padding: 3px 0;
+}
+
+/* Insignias de Calificación (Escala 1 a 5) */
+.insignia-calificacion-1 {
+    background-color: #6b1d14;
+    color: #f7f1df;
+}
+
+.insignia-calificacion-2 {
+    background-color: #8c4a19;
+    color: #f7f1df;
+}
+
+.insignia-calificacion-3 {
+    background-color: #a67c2e;
+    color: #1a110b;
+}
+
+.insignia-calificacion-4 {
+    background-color: #3d6b2c;
+    color: #f7f1df;
+}
+
+.insignia-calificacion-5 {
+    background-color: #1f4d19;
+    color: #f7f1df;
+    border: 2px solid #a67c2e;
+}
+
+.insignia-no-jugado {
+    background-color: #5a4634;
+    color: #e8dcb8;
+}
+
+/* Muro Público de Crónicas */
+.muro-resenyas {
+    margin-top: 20px;
+    border-top: 2px solid #4a3219;
+    padding-top: 16px;
+}
+
+.lista-tarjetas-resenya {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.resenya-item {
+    background-color: #f2e8c9;
+    border: 2px solid #4a3219;
+    padding: 12px 14px;
+    border-radius: 2px;
+}
+
+.resenya-cabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: 1px solid #bfa975;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+}
+
+.resenya-fecha {
+    font-size: 0.8rem;
+    color: #5a4634;
+    font-style: italic;
+}
+
+.resenya-texto {
+    color: #1f140e;
+    white-space: pre-line;
+}
+
+.resenya-texto-vacio {
+    color: #6e5843;
+    font-size: 0.9rem;
 }

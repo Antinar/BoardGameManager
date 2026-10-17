@@ -3,7 +3,7 @@
  */
 document.addEventListener('DOMContentLoaded', function () {
 
-    // 1. Cambio de pestañas en login.php y admin.php
+    // 1. Cambio de pestañas en login.php y paneles agrupados
     var botonesPestana = document.querySelectorAll('[data-tab-target]');
     botonesPestana.forEach(function (boton) {
         boton.addEventListener('click', function () {
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // 2. Previsualización de imagen antes de subirla
+    // 2. Previsualización de imagen antes de subirla y validación de 5 MB
     var inputsImagen = document.querySelectorAll('input[type="file"][data-preview-target]');
     inputsImagen.forEach(function (input) {
         input.addEventListener('change', function () {
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // 3. Filtro instantáneo por texto para tablas extensas
+    // 3. Filtro instantáneo por texto para tablas
     var buscadoresTabla = document.querySelectorAll('[data-table-filter]');
     buscadoresTabla.forEach(function (inputBusqueda) {
         inputBusqueda.addEventListener('input', function () {
@@ -89,18 +89,66 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-    // 5. Desplegar / Contraer bloques de votación
-    var cabecerasVotacion = document.querySelectorAll('[data-toggle-votacion]');
-    cabecerasVotacion.forEach(function (cabecera) {
-        cabecera.addEventListener('click', function () {
-            var bloque = cabecera.closest('.votacion-bloque');
-            if (!bloque) return;
 
-            var estaContraida = bloque.classList.toggle('contraida');
-            var btnTexto = cabecera.querySelector('.btn-toggle-texto');
-            if (btnTexto) {
-                btnTexto.textContent = estaContraida ? 'Desplegar' : 'Contraer';
+    // 5. Conmutador interactivo entre Vista A (Imagen) y Vista B (Estadísticas) en ludoteca.php
+    var botonesVisor = document.querySelectorAll('[data-visor-card][data-visor-target]');
+    botonesVisor.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var cardId = btn.getAttribute('data-visor-card');
+            var vistaObjetivo = btn.getAttribute('data-visor-target');
+            var contenedorVisor = document.getElementById(cardId);
+            if (!contenedorVisor) return;
+
+            contenedorVisor.querySelectorAll('[data-visor-target]').forEach(function (b) {
+                b.classList.remove('activa');
+            });
+            btn.classList.add('activa');
+
+            contenedorVisor.querySelectorAll('[data-visor-panel]').forEach(function (panel) {
+                if (panel.getAttribute('data-visor-panel') === vistaObjetivo) {
+                    panel.classList.remove('panel-oculto');
+                } else {
+                    panel.classList.add('panel-oculto');
+                }
+            });
+        });
+    });
+
+    // 6. Mostrar u ocultar el selector de calificación según si ha jugado ("1") o no ("0")
+    var radiosHaJugado = document.querySelectorAll('input[type="radio"][data-ha-jugado-input]');
+    radiosHaJugado.forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            var idBloqueCal = radio.getAttribute('data-ha-jugado-input');
+            var bloqueCal = document.getElementById(idBloqueCal);
+            if (!bloqueCal) return;
+
+            if (radio.value === '1' && radio.checked) {
+                bloqueCal.classList.remove('panel-oculto');
+            } else if (radio.value === '0' && radio.checked) {
+                bloqueCal.classList.add('panel-oculto');
             }
+        });
+    });
+
+    // 7. Filtro instantáneo de tarjetas de juegos y reseñas en ludoteca.php
+    var buscadoresLudoteca = document.querySelectorAll('[data-ludoteca-filter]');
+    buscadoresLudoteca.forEach(function (inputFiltro) {
+        inputFiltro.addEventListener('input', function () {
+            var idContenedor = inputFiltro.getAttribute('data-ludoteca-filter');
+            var contenedor = document.getElementById(idContenedor);
+            if (!contenedor) return;
+
+            var termino = inputFiltro.value.toLowerCase().trim();
+            var tarjetas = contenedor.querySelectorAll('.ludoteca-tarjeta');
+
+            tarjetas.forEach(function (tarjeta) {
+                var textoTarjeta = tarjeta.textContent.toLowerCase();
+                if (textoTarjeta.indexOf(termino) !== -1) {
+                    tarjeta.style.display = '';
+                } else {
+                    tarjeta.style.display = 'none';
+                }
+            });
         });
     });
 });
