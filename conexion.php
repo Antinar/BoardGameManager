@@ -152,6 +152,7 @@ function renderizarNavegacion($paginaActiva = '') {
 
     <nav class="taberna-nav">
         <a href="index.php" class="nav-enlace <?php echo $paginaActiva === 'index' ? 'activo' : ''; ?>">Inicio</a>
+        <a href="ludoteca.php" class="nav-enlace <?php echo $paginaActiva === 'ludoteca' ? 'activo' : ''; ?>">Ludoteca</a>
         <a href="juegos.php" class="nav-enlace <?php echo $paginaActiva === 'juegos' ? 'activo' : ''; ?>">Juegos Deseados</a>
         <a href="alta_juego.php" class="nav-enlace <?php echo $paginaActiva === 'alta_juego' ? 'activo' : ''; ?>">Subir Juego</a>
         <a href="leaderboard.php" class="nav-enlace <?php echo $paginaActiva === 'leaderboard' ? 'activo' : ''; ?>">Leaderboard</a>

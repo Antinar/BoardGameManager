@@ -103,4 +103,49 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+    
+    // 6. Mostrar / ocultar campos de calificación (1-5) y opinión en Ludoteca según "¿Lo has jugado?"
+    var radiosJugado = document.querySelectorAll('input[type="radio"][data-toggle-jugado]');
+    radiosJugado.forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            var targetId = radio.getAttribute('data-toggle-jugado');
+            var bloque = document.getElementById(targetId);
+            if (!bloque) return;
+
+            var selectCal = bloque.querySelector('select[name="calificacion"]');
+            if (radio.value === '1' && radio.checked) {
+                bloque.style.display = '';
+                if (selectCal) selectCal.required = true;
+            } else {
+                bloque.style.display = 'none';
+                if (selectCal) selectCal.required = false;
+            }
+        });
+    });
+
+    // 7. Buscador en tiempo real por nombre de juego en Ludoteca (ludoteca.php)
+    var inputBuscarLudoteca = document.getElementById('buscador-ludoteca');
+    var tarjetasLudoteca = document.querySelectorAll('.tarjeta-ludoteca');
+    var msgSinResultadosLudoteca = document.getElementById('ludoteca-sin-resultados');
+
+    if (inputBuscarLudoteca && tarjetasLudoteca.length > 0) {
+        inputBuscarLudoteca.addEventListener('input', function () {
+            var filtro = inputBuscarLudoteca.value.toLowerCase().trim();
+            var visibles = 0;
+
+            tarjetasLudoteca.forEach(function (tarjeta) {
+                var nombre = (tarjeta.getAttribute('data-nombre') || '').toLowerCase();
+                if (filtro === '' || nombre.indexOf(filtro) !== -1) {
+                    tarjeta.style.display = '';
+                    visibles++;
+                } else {
+                    tarjeta.style.display = 'none';
+                }
+            });
+
+            if (msgSinResultadosLudoteca) {
+                msgSinResultadosLudoteca.style.display = (visibles === 0) ? 'block' : 'none';
+            }
+        });
+    }
 });

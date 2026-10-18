@@ -737,3 +737,54 @@ body {
 .tarjeta-juego-voto {
     min-height: 340px;
 }
+
+/* =========================================================================
+   VISTA LUDOTECA (CUADRÍCULA 1:1 + FORMULARIO + TABLA DE RESEÑAS)
+   ========================================================================= */
+.grid-ludoteca {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+    margin-top: 16px;
+}
+
+.tarjeta-ludoteca {
+    background-color: #dfd1a7;
+    border: 2px solid #4a3219;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.tarjeta-ludoteca-top img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    height: auto;
+    object-fit: cover;
+    border: 2px solid #362417;
+    background-color: #23170f;
+    display: block;
+}
+
+.tarjeta-ludoteca-titulo {
+    margin-top: 10px;
+    font-size: 1.25rem;
+    color: #23170f;
+    border-bottom: 2px solid #4a3219;
+    padding-bottom: 6px;
+}
+
+.form-ludoteca {
+    margin-bottom: 0;
+}
+
+.ludoteca-resenyas-wrapper .tabla-contenedor {
+    max-height: 320px; /* Scroll propio dentro de la tarjeta */
+}
+
+@media (max-width: 768px) {
+    .grid-ludoteca {
+        grid-template-columns: 1fr;
+    }
+}

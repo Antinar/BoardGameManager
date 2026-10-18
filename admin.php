@@ -177,6 +177,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mensajeExito = "Voto individual #{$idVoto} eliminado.";
             }
         }
+
+        // =====================================================================
+        // 7. CRUD TABLA RESENYA (LUDOTECA)
+        // =====================================================================
+        elseif ($entidad === 'resenya') {
+            $calificacionesPermitidas = [
+                'No me gustó',
+                'Meh',
+                'Está Bien',
+                'Me gustó bastante',
+                '¿Pa cuando otra?'
+            ];
+
+            if ($operacion === 'crear') {
+                $userR = trim($_POST['username']);
+                $juegoR = trim($_POST['NombreJuego']);
+                $haJugadoR = (isset($_POST['ha_jugado']) && $_POST['ha_jugado'] === '1') ? 1 : 0;
+                $calR = isset($_POST['calificacion']) ? trim($_POST['calificacion']) : '';
+                $comR = isset($_POST['comentario']) ? trim($_POST['comentario']) : '';
+
+                if ($haJugadoR === 0) {
+                    $calR = null;
+                    $comR = null;
+                } else {
+                    $calR = in_array($calR, $calificacionesPermitidas, true) ? $calR : null;
+                    $comR = ($comR !== '') ? $comR : null;
+                }
+
+                $stmt = $pdo->prepare("
+                    INSERT INTO Resenya (username, NombreJuego, ha_jugado, calificacion, comentario)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        ha_jugado = VALUES(ha_jugado),
+                        calificacion = VALUES(calificacion),
+                        comentario = VALUES(comentario)
+                ");
+                $stmt->execute([$userR, $juegoR, $haJugadoR, $calR, $comR]);
+                $mensajeExito = "Reseña de «{$userR}» sobre «{$juegoR}» guardada.";
+            } elseif ($operacion === 'editar') {
+                $idRes = (int)$_POST['id_resenya'];
+                $userR = trim($_POST['username']);
+                $juegoR = trim($_POST['NombreJuego']);
+                $haJugadoR = (isset($_POST['ha_jugado']) && $_POST['ha_jugado'] === '1') ? 1 : 0;
+                $calR = isset($_POST['calificacion']) ? trim($_POST['calificacion']) : '';
+                $comR = isset($_POST['comentario']) ? trim($_POST['comentario']) : '';
+
+                if ($haJugadoR === 0) {
+                    $calR = null;
+                    $comR = null;
+                } else {
+                    $calR = in_array($calR, $calificacionesPermitidas, true) ? $calR : null;
+                    $comR = ($comR !== '') ? $comR : null;
+                }
+
+                $stmt = $pdo->prepare("
+                    UPDATE Resenya
+                    SET username = ?, NombreJuego = ?, ha_jugado = ?, calificacion = ?, comentario = ?
+                    WHERE id_resenya = ?
+                ");
+                $stmt->execute([$userR, $juegoR, $haJugadoR, $calR, $comR, $idRes]);
+                $mensajeExito = "Reseña #{$idRes} actualizada correctamente.";
+            } elseif ($operacion === 'eliminar') {
+                $idRes = (int)$_POST['id_resenya'];
+                $stmt = $pdo->prepare("DELETE FROM Resenya WHERE id_resenya = ?");
+                $stmt->execute([$idRes]);
+                $mensajeExito = "Reseña #{$idRes} eliminada.";
+            }
+        }
     } catch (Exception $e) {
         $mensajeError = "Error en la operación de administración: " . $e->getMessage();
     }
@@ -189,6 +257,14 @@ $relacionesPJ = $pdo->query("SELECT * FROM Persona_Juego ORDER BY NombreJuego AS
 $victorias = $pdo->query("SELECT * FROM Victoria ORDER BY id_victoria DESC")->fetchAll();
 $votaciones = $pdo->query("SELECT * FROM Votacion ORDER BY id_votacion DESC")->fetchAll();
 $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
+$resenyas = $pdo->query("SELECT * FROM Resenya ORDER BY fecha_resenya DESC, id_resenya DESC")->fetchAll();
+$escalaAdminResenyas = [
+    1 => 'No me gustó',
+    2 => 'Meh',
+    3 => 'Está Bien',
+    4 => 'Me gustó bastante',
+    5 => '¿Pa cuando otra?'
+];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -616,6 +692,142 @@ $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
         </div>
     </section>
 
+    <!-- 7. GESTIÓN DE RESEÑAS (LUDOTECA) -->
+    <section class="pergamino">
+        <h3 class="seccion-titulo">7. Reseñas de la Ludoteca (<?php echo count($resenyas); ?>)</h3>
+
+        <form method="POST" action="admin.php" class="pergamino-secundario" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;">
+            <input type="hidden" name="entidad" value="resenya">
+            <input type="hidden" name="operacion" value="crear">
+
+            <div>
+                <label>Usuario:</label>
+                <select name="username" class="select-taberna" required>
+                    <?php foreach ($personas as $p): ?>
+                        <option value="<?php echo h($p['username']); ?>"><?php echo h($p['username']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div>
+                <label>Juego:</label>
+                <select name="NombreJuego" class="select-taberna" required>
+                    <?php foreach ($juegos as $j): ?>
+                        <option value="<?php echo h($j['NombreJuego']); ?>"><?php echo h($j['NombreJuego']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div>
+                <label>¿Jugado?:</label>
+                <select name="ha_jugado" class="select-taberna">
+                    <option value="1">1 - Sí</option>
+                    <option value="0">0 - No</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Calificación (1-5):</label>
+                <select name="calificacion" class="select-taberna">
+                    <option value="">-- Ninguna (NULL) --</option>
+                    <?php foreach ($escalaAdminResenyas as $num => $txtCal): ?>
+                        <option value="<?php echo h($txtCal); ?>"><?php echo $num . ' - ' . h($txtCal); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div style="flex:1; min-width:180px;">
+                <label>Comentario:</label>
+                <input type="text" name="comentario" class="input-taberna" placeholder="Opinión...">
+            </div>
+
+            <button type="submit" class="btn btn-bronce btn-pequeno">Guardar Reseña</button>
+        </form>
+
+        <div class="tabla-contenedor">
+            <table class="tabla-taberna">
+                <thead>
+                    <tr>
+                        <th style="width:65px;">ID</th>
+                        <th>Usuario</th>
+                        <th>Juego</th>
+                        <th style="width:110px;">¿Jugado?</th>
+                        <th>Calificación (1-5)</th>
+                        <th>Comentario</th>
+                        <th style="width:160px;">Fecha</th>
+                        <th style="width:190px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($resenyas as $r): ?>
+                        <?php $formIdR = 'form_res_' . (int)$r['id_resenya']; ?>
+                        <tr>
+                            <td>
+                                <strong>#<?php echo (int)$r['id_resenya']; ?></strong>
+                                <form id="<?php echo $formIdR; ?>" method="POST" action="admin.php">
+                                    <input type="hidden" name="entidad" value="resenya">
+                                    <input type="hidden" name="operacion" value="editar">
+                                    <input type="hidden" name="id_resenya" value="<?php echo (int)$r['id_resenya']; ?>">
+                                </form>
+                            </td>
+                            <td>
+                                <select form="<?php echo $formIdR; ?>" name="username" class="select-taberna">
+                                    <?php foreach ($personas as $p): ?>
+                                        <option value="<?php echo h($p['username']); ?>" <?php echo $p['username'] === $r['username'] ? 'selected' : ''; ?>>
+                                            <?php echo h($p['username']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </td>
+                            <td>
+                                <select form="<?php echo $formIdR; ?>" name="NombreJuego" class="select-taberna">
+                                    <?php foreach ($juegos as $j): ?>
+                                        <option value="<?php echo h($j['NombreJuego']); ?>" <?php echo $j['NombreJuego'] === $r['NombreJuego'] ? 'selected' : ''; ?>>
+                                            <?php echo h($j['NombreJuego']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </td>
+                            <td>
+                                <select form="<?php echo $formIdR; ?>" name="ha_jugado" class="select-taberna">
+                                    <option value="1" <?php echo (int)$r['ha_jugado'] === 1 ? 'selected' : ''; ?>>Sí (1)</option>
+                                    <option value="0" <?php echo (int)$r['ha_jugado'] === 0 ? 'selected' : ''; ?>>No (0)</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select form="<?php echo $formIdR; ?>" name="calificacion" class="select-taberna">
+                                    <option value="">-- NULL --</option>
+                                    <?php foreach ($escalaAdminResenyas as $num => $txtCal): ?>
+                                        <option value="<?php echo h($txtCal); ?>" <?php echo $r['calificacion'] === $txtCal ? 'selected' : ''; ?>>
+                                            <?php echo $num . ' - ' . h($txtCal); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" form="<?php echo $formIdR; ?>" name="comentario" value="<?php echo h((string)$r['comentario']); ?>" class="input-taberna">
+                            </td>
+                            <td style="font-size:0.85rem;">
+                                <?php echo h($r['fecha_resenya']); ?>
+                            </td>
+                            <td>
+                                <div class="acciones-admin-celda">
+                                    <button type="submit" form="<?php echo $formIdR; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
+                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar la reseña #<?php echo (int)$r['id_resenya']; ?>?">
+                                        <input type="hidden" name="entidad" value="resenya">
+                                        <input type="hidden" name="operacion" value="eliminar">
+                                        <input type="hidden" name="id_resenya" value="<?php echo (int)$r['id_resenya']; ?>">
+                                        <button type="submit" class="btn btn-peligro btn-pequeno">Borrar</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </section>
+    
 </main>
 
 <script src="app.js"></script>

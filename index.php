@@ -54,6 +54,7 @@ $ultimaVictoria = $stmtUltima->fetch();
         <section class="pergamino">
             <h3 class="seccion-subtitulo">Accesos Rápidos</h3>
             <div style="display:grid; gap:10px;">
+                <a href="ludoteca.php" class="btn btn-exito">Explorar Ludoteca y Reseñas</a>
                 <a href="alta_juego.php" class="btn btn-primario">Subir Nuevo Juego</a>
                 <a href="juegos.php" class="btn btn-bronce">Ver Juegos Deseados</a>
                 <a href="leaderboard.php" class="btn">Tablón de Campeones (Leaderboard)</a>
