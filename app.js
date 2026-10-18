@@ -3,7 +3,7 @@
  */
 document.addEventListener('DOMContentLoaded', function () {
 
-    // 1. Cambio de pestañas en login.php y paneles agrupados
+    // 1. Cambio de pestañas en login.php y admin.php
     var botonesPestana = document.querySelectorAll('[data-tab-target]');
     botonesPestana.forEach(function (boton) {
         boton.addEventListener('click', function () {
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // 2. Previsualización de imagen antes de subirla y validación de 5 MB
+    // 2. Previsualización de imagen antes de subirla
     var inputsImagen = document.querySelectorAll('input[type="file"][data-preview-target]');
     inputsImagen.forEach(function (input) {
         input.addEventListener('change', function () {
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // 3. Filtro instantáneo por texto para tablas
+    // 3. Filtro instantáneo por texto para tablas extensas
     var buscadoresTabla = document.querySelectorAll('[data-table-filter]');
     buscadoresTabla.forEach(function (inputBusqueda) {
         inputBusqueda.addEventListener('input', function () {
@@ -86,6 +86,20 @@ document.addEventListener('DOMContentLoaded', function () {
             var mensaje = formulario.getAttribute('data-confirm-msg') || '¿Estás seguro de que deseas eliminar este registro de forma permanente?';
             if (!window.confirm(mensaje)) {
                 e.preventDefault();
+            }
+        });
+    });
+    // 5. Desplegar / Contraer bloques de votación
+    var cabecerasVotacion = document.querySelectorAll('[data-toggle-votacion]');
+    cabecerasVotacion.forEach(function (cabecera) {
+        cabecera.addEventListener('click', function () {
+            var bloque = cabecera.closest('.votacion-bloque');
+            if (!bloque) return;
+
+            var estaContraida = bloque.classList.toggle('contraida');
+            var btnTexto = cabecera.querySelector('.btn-toggle-texto');
+            if (btnTexto) {
+                btnTexto.textContent = estaContraida ? 'Desplegar' : 'Contraer';
             }
         });
     });

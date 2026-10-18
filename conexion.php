@@ -2,7 +2,7 @@
 session_start();
 
 // =========================================================================
-// CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS (INFINITYFREE / LOCAL)
+// CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS (AJUSTAR EN INFINITYFREE)
 // =========================================================================
 $db_host = 'sql209.infinityfree.com';               // En InfinityFree ej: sqlXXX.infinityfree.com
 $db_name = 'if0_43192957_gatarras';     // Nombre de tu base de datos en phpMyAdmin
@@ -21,7 +21,7 @@ try {
         ]
     );
 } catch (PDOException $e) {
-    die("Error al conectar con los archivos de La Taberna de las Gatitas Jugonas (Base de Datos): " . htmlspecialchars($e->getMessage()));
+    die("Error al conectar con los archivos de la Taberna (Base de Datos): " . htmlspecialchars($e->getMessage()));
 }
 
 /**
@@ -29,16 +29,6 @@ try {
  */
 function h($cadena) {
     return htmlspecialchars((string)$cadena, ENT_QUOTES, 'UTF-8');
-}
-
-/**
- * Devuelve el archivo de inicio principal según la estructura del repositorio (index.php o inicio.php).
- */
-function obtenerRutaInicio() {
-    if (file_exists(__DIR__ . '/index.php')) {
-        return 'index.php';
-    }
-    return 'inicio.php';
 }
 
 /**
@@ -50,7 +40,7 @@ function requerirLogin(PDO $pdo) {
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT username, NombrePersona, rol, inscrito_leaderboard FROM Persona WHERE username = ?");
+    $stmt = $pdo->prepare("SELECT username, NombrePersona, rol FROM Persona WHERE username = ?");
     $stmt->execute([$_SESSION['username']]);
     $usuario = $stmt->fetch();
 
@@ -61,10 +51,9 @@ function requerirLogin(PDO $pdo) {
         exit;
     }
 
-    $_SESSION['username']             = $usuario['username'];
-    $_SESSION['NombrePersona']        = $usuario['NombrePersona'];
-    $_SESSION['rol']                  = $usuario['rol'];
-    $_SESSION['inscrito_leaderboard'] = (int)$usuario['inscrito_leaderboard'];
+    $_SESSION['username']      = $usuario['username'];
+    $_SESSION['NombrePersona'] = $usuario['NombrePersona'];
+    $_SESSION['rol']           = $usuario['rol'];
 }
 
 /**
@@ -73,7 +62,7 @@ function requerirLogin(PDO $pdo) {
 function requerirAdmin(PDO $pdo) {
     requerirLogin($pdo);
     if ($_SESSION['rol'] !== 'admin') {
-        header('Location: ' . obtenerRutaInicio());
+        header('Location: index.php');
         exit;
     }
 }
@@ -139,42 +128,36 @@ function procesarSubidaImagen($campoArchivo, &$errorMsg) {
 }
 
 /**
- * Renderiza la barra superior de navegación de la taberna incluyendo el enlace a Ludoteca.
+ * Renderiza la barra superior de navegación de la taberna.
  */
 function renderizarNavegacion($paginaActiva = '') {
     $esAdmin = (isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin');
     $nombreMostrar = isset($_SESSION['NombrePersona']) ? $_SESSION['NombrePersona'] : '';
     $userMostrar = isset($_SESSION['username']) ? $_SESSION['username'] : '';
-    $rutaInicio = obtenerRutaInicio();
-    $esInicio = ($paginaActiva === 'inicio' || $paginaActiva === 'index');
     ?>
     <header class="taberna-header">
         <div class="taberna-titulo-bloque">
             <h1 class="taberna-titulo">La Taberna de las Gatitas Jugonas</h1>
-            <p class="taberna-subtitulo">Cofradía de Juegos de Mesa, Ludoteca, Crónicas de Victoria y Consejo de Votaciones</p>
         </div>
         <div class="taberna-usuario-bloque">
             <span class="usuario-etiqueta">
-                Parroquiano: <strong><?php echo h($nombreMostrar); ?></strong> (<?php echo h($userMostrar); ?>)
+                <strong><?php echo h($nombreMostrar); ?></strong> (<?php echo h($userMostrar); ?>)
                 <?php if ($esAdmin): ?>
-                    <span class="insignia-rol">[Tabernero / Admin]</span>
+                    <span class="insignia-rol">[Admin]</span>
                 <?php endif; ?>
             </span>
-            <a href="logout.php" class="btn btn-peligro btn-pequeno">Salir de la Taberna</a>
+            <a href="logout.php" class="btn btn-peligro btn-pequeno">Salir</a>
         </div>
     </header>
 
     <nav class="taberna-nav">
-        <a href="<?php echo h($rutaInicio); ?>" class="nav-enlace <?php echo $esInicio ? 'activo' : ''; ?>">Salón Principal</a>
-        <a href="ludoteca.php" class="nav-enlace <?php echo $paginaActiva === 'ludoteca' ? 'activo' : ''; ?>">Ludoteca</a>
+        <a href="index.php" class="nav-enlace <?php echo $paginaActiva === 'index' ? 'activo' : ''; ?>">Inicio</a>
         <a href="juegos.php" class="nav-enlace <?php echo $paginaActiva === 'juegos' ? 'activo' : ''; ?>">Juegos Deseados</a>
-        <?php if (file_exists(__DIR__ . '/alta_juego.php')): ?>
-            <a href="alta_juego.php" class="nav-enlace <?php echo $paginaActiva === 'alta_juego' ? 'activo' : ''; ?>">Subir Juego</a>
-        <?php endif; ?>
-        <a href="leaderboard.php" class="nav-enlace <?php echo $paginaActiva === 'leaderboard' ? 'activo' : ''; ?>">Tablón de Campeones</a>
-        <a href="votaciones.php" class="nav-enlace <?php echo $paginaActiva === 'votaciones' ? 'activo' : ''; ?>">Consejo de Votos</a>
+        <a href="alta_juego.php" class="nav-enlace <?php echo $paginaActiva === 'alta_juego' ? 'activo' : ''; ?>">Subir Juego</a>
+        <a href="leaderboard.php" class="nav-enlace <?php echo $paginaActiva === 'leaderboard' ? 'activo' : ''; ?>">Leaderboard</a>
+        <a href="votaciones.php" class="nav-enlace <?php echo $paginaActiva === 'votaciones' ? 'activo' : ''; ?>">Votaciones</a>
         <?php if ($esAdmin): ?>
-            <a href="admin.php" class="nav-enlace nav-admin <?php echo $paginaActiva === 'admin' ? 'activo' : ''; ?>">Despacho del Tabernero (Admin)</a>
+            <a href="admin.php" class="nav-enlace nav-admin <?php echo $paginaActiva === 'admin' ? 'activo' : ''; ?>">Admin</a>
         <?php endif; ?>
     </nav>
     <?php

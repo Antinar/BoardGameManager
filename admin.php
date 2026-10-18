@@ -5,14 +5,6 @@ requerirAdmin($pdo);
 $mensajeExito = '';
 $mensajeError = '';
 
-$calificacionesValidas = [
-    'No me gustó',
-    'Meh',
-    'Está Bien',
-    'Me gustó bastante',
-    '¿Pa cuando otra?'
-];
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $entidad = isset($_POST['entidad']) ? $_POST['entidad'] : '';
     $operacion = isset($_POST['operacion']) ? $_POST['operacion'] : '';
@@ -28,22 +20,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $nombrePersona = trim($_POST['NombrePersona']);
                 $contrasenya = (string)$_POST['contrasenya'];
                 $rol = ($_POST['rol'] === 'admin') ? 'admin' : 'jugador';
-                $inscrito = (isset($_POST['inscrito_leaderboard']) && $_POST['inscrito_leaderboard'] === '1') ? 1 : 0;
 
-                $stmt = $pdo->prepare("UPDATE Persona SET username = ?, NombrePersona = ?, contrasenya = ?, rol = ?, inscrito_leaderboard = ? WHERE username = ?");
-                $stmt->execute([$nuevoUsername, $nombrePersona, $contrasenya, $rol, $inscrito, $originalUsername]);
+                $stmt = $pdo->prepare("UPDATE Persona SET username = ?, NombrePersona = ?, contrasenya = ?, rol = ?, inscrito_leaderboard = 1 WHERE username = ?");
+                $stmt->execute([$nuevoUsername, $nombrePersona, $contrasenya, $rol, $originalUsername]);
 
                 if ($_SESSION['username'] === $originalUsername) {
                     $_SESSION['username'] = $nuevoUsername;
                     $_SESSION['NombrePersona'] = $nombrePersona;
                     $_SESSION['rol'] = $rol;
                 }
-                $mensajeExito = "Usuario «{$originalUsername}» actualizado correctamente.";
+                $mensajeExito = "Usuario «{$originalUsername}» actualizado.";
             } elseif ($operacion === 'eliminar') {
                 $usernameDel = $_POST['username'];
+                if ($usernameDel === $_SESSION['username']) {
+                    throw new Exception("No puedes eliminar tu propio usuario administrador mientras tienes la sesión iniciada.");
+                }
                 $stmt = $pdo->prepare("DELETE FROM Persona WHERE username = ?");
                 $stmt->execute([$usernameDel]);
-                $mensajeExito = "Usuario «{$usernameDel}» eliminado junto con sus registros asociados.";
+                $mensajeExito = "Usuario «{$usernameDel}» eliminado.";
             }
         }
 
@@ -63,17 +57,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($nuevaRuta === false) {
                         throw new Exception($errImg);
                     }
+                    // Borrar archivo antiguo si estaba en uploads/
+                    if (strpos($urlActual, 'uploads/') === 0 && file_exists(__DIR__ . '/' . $urlActual)) {
+                        @unlink(__DIR__ . '/' . $urlActual);
+                    }
                     $urlActual = $nuevaRuta;
                 }
 
                 $stmt = $pdo->prepare("UPDATE Juego SET NombreJuego = ?, Url = ?, lo_tenemos = ? WHERE NombreJuego = ?");
                 $stmt->execute([$nuevoNombre, $urlActual, $loTenemos, $originalNombre]);
-                $mensajeExito = "Juego «{$originalNombre}» actualizado correctamente.";
+
+                // Si pasa a "Ya lo tenemos", limpiamos sus interesados de Persona_Juego
+                if ($loTenemos === 1) {
+                    $stmtClean = $pdo->prepare("DELETE FROM Persona_Juego WHERE NombreJuego = ?");
+                    $stmtClean->execute([$nuevoNombre]);
+                }
+
+                $mensajeExito = "Juego «{$originalNombre}» actualizado.";
             } elseif ($operacion === 'eliminar') {
                 $nombreDel = $_POST['NombreJuego'];
+                $stmtUrl = $pdo->prepare("SELECT Url FROM Juego WHERE NombreJuego = ?");
+                $stmtUrl->execute([$nombreDel]);
+                $imgAntigua = $stmtUrl->fetchColumn();
+
                 $stmt = $pdo->prepare("DELETE FROM Juego WHERE NombreJuego = ?");
                 $stmt->execute([$nombreDel]);
-                $mensajeExito = "Juego «{$nombreDel}» eliminado de la base de datos.";
+
+                if ($imgAntigua && strpos($imgAntigua, 'uploads/') === 0 && file_exists(__DIR__ . '/' . $imgAntigua)) {
+                    @unlink(__DIR__ . '/' . $imgAntigua);
+                }
+                $mensajeExito = "Juego «{$nombreDel}» eliminado.";
             }
         }
 
@@ -84,9 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($operacion === 'crear') {
                 $u = trim($_POST['username']);
                 $j = trim($_POST['NombreJuego']);
-                $stmt = $pdo->prepare("INSERT INTO Persona_Juego (username, NombreJuego) VALUES (?, ?)");
+                $stmt = $pdo->prepare("INSERT IGNORE INTO Persona_Juego (username, NombreJuego) VALUES (?, ?)");
                 $stmt->execute([$u, $j]);
-                $mensajeExito = "Relación de interés creada para «{$u}» en «{$j}».";
+                $mensajeExito = "Relación añadida para «{$u}» en «{$j}».";
             } elseif ($operacion === 'editar') {
                 $origU = $_POST['orig_username'];
                 $origJ = $_POST['orig_NombreJuego'];
@@ -94,13 +107,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $nuevoJ = trim($_POST['NombreJuego']);
                 $stmt = $pdo->prepare("UPDATE Persona_Juego SET username = ?, NombreJuego = ? WHERE username = ? AND NombreJuego = ?");
                 $stmt->execute([$nuevoU, $nuevoJ, $origU, $origJ]);
-                $mensajeExito = "Inscripción de interés actualizada correctamente.";
+                $mensajeExito = "Relación actualizada.";
             } elseif ($operacion === 'eliminar') {
                 $u = $_POST['username'];
                 $j = $_POST['NombreJuego'];
                 $stmt = $pdo->prepare("DELETE FROM Persona_Juego WHERE username = ? AND NombreJuego = ?");
                 $stmt->execute([$u, $j]);
-                $mensajeExito = "Inscripción de interés eliminada.";
+                $mensajeExito = "Relación eliminada.";
             }
         }
 
@@ -164,67 +177,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mensajeExito = "Voto individual #{$idVoto} eliminado.";
             }
         }
-
-        // =====================================================================
-        // 7. CRUD TABLA RESENYA (SECCIÓN 7: LUDOTECA)
-        // =====================================================================
-        elseif ($entidad === 'resenya') {
-            if ($operacion === 'editar') {
-                $idRes = (int)$_POST['id_resenya'];
-                $u = trim($_POST['username']);
-                $j = trim($_POST['NombreJuego']);
-                $haJugado = (isset($_POST['ha_jugado']) && $_POST['ha_jugado'] === '1') ? 1 : 0;
-                $cal = isset($_POST['calificacion']) ? trim($_POST['calificacion']) : null;
-                $com = isset($_POST['comentario']) ? trim($_POST['comentario']) : null;
-
-                if ($haJugado === 0 || !in_array($cal, $calificacionesValidas, true)) {
-                    $cal = null;
-                }
-                if ($com === '') {
-                    $com = null;
-                }
-
-                $stmt = $pdo->prepare("
-                    UPDATE Resenya
-                    SET username = ?, NombreJuego = ?, ha_jugado = ?, calificacion = ?, comentario = ?
-                    WHERE id_resenya = ?
-                ");
-                $stmt->execute([$u, $j, $haJugado, $cal, $com, $idRes]);
-                $mensajeExito = "Reseña #{$idRes} actualizada correctamente.";
-            } elseif ($operacion === 'eliminar') {
-                $idRes = (int)$_POST['id_resenya'];
-                $stmt = $pdo->prepare("DELETE FROM Resenya WHERE id_resenya = ?");
-                $stmt->execute([$idRes]);
-                $mensajeExito = "Reseña #{$idRes} eliminada de la Ludoteca.";
-            }
-        }
     } catch (Exception $e) {
         $mensajeError = "Error en la operación de administración: " . $e->getMessage();
     }
 }
 
-// Consultas de todas las tablas del sistema
+// Consultas de todas las tablas instanciadas en la base de datos
 $personas = $pdo->query("SELECT * FROM Persona ORDER BY username ASC")->fetchAll();
 $juegos = $pdo->query("SELECT * FROM Juego ORDER BY NombreJuego ASC")->fetchAll();
 $relacionesPJ = $pdo->query("SELECT * FROM Persona_Juego ORDER BY NombreJuego ASC, username ASC")->fetchAll();
 $victorias = $pdo->query("SELECT * FROM Victoria ORDER BY id_victoria DESC")->fetchAll();
 $votaciones = $pdo->query("SELECT * FROM Votacion ORDER BY id_votacion DESC")->fetchAll();
 $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
-
-$resenyas = [];
-$tablaResenyaActiva = true;
-try {
-    $resenyas = $pdo->query("SELECT * FROM Resenya ORDER BY fecha_resenya DESC, id_resenya DESC")->fetchAll();
-} catch (Exception $e) {
-    $tablaResenyaActiva = false;
-}
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Despacho del Tabernero (Admin) - La Taberna de las Gatitas Jugonas</title>
+    <title>Despacho del Tabernero (Admin) - La Taberna del Dado de Hierro</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -242,25 +213,24 @@ try {
     <?php endif; ?>
 
     <section class="pergamino">
-        <h2 class="seccion-titulo">Panel de Administración Total (CRUD Completo - 7 Secciones)</h2>
+        <h2 class="seccion-titulo">Panel de Administración</h2>
         <p>
-            Control total de lectura, edición y borrado sobre las 7 tablas del sistema: Personas, Juegos, Interesados (<code>Persona_Juego</code>), Victorias, Votaciones, Votos y Reseñas de la Ludoteca (<code>Resenya</code>).
+            Desde este panel puedes inspeccionar, modificar o eliminar cualquier registro de las 6 tablas del sistema.
         </p>
     </section>
 
     <!-- 1. GESTIÓN DE PERSONAS -->
     <section class="pergamino">
-        <h3 class="seccion-titulo">1. Tabla Persona (Usuarios Registrados: <?php echo count($personas); ?>)</h3>
+        <h3 class="seccion-titulo">1. Usuarios (<?php echo count($personas); ?>)</h3>
         <div class="tabla-contenedor">
             <table class="tabla-taberna">
                 <thead>
                     <tr>
                         <th>Username (PK)</th>
                         <th>Nombre y Apellidos</th>
-                        <th>Contraseña (Texto Plano)</th>
+                        <th>Contraseña</th>
                         <th>Rol</th>
-                        <th>En Leaderboard</th>
-                        <th style="width:210px;">Acciones</th>
+                        <th style="width:190px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -288,15 +258,9 @@ try {
                                 </select>
                             </td>
                             <td>
-                                <select form="<?php echo $formIdP; ?>" name="inscrito_leaderboard" class="select-taberna">
-                                    <option value="1" <?php echo (int)$p['inscrito_leaderboard'] === 1 ? 'selected' : ''; ?>>Sí (1)</option>
-                                    <option value="0" <?php echo (int)$p['inscrito_leaderboard'] === 0 ? 'selected' : ''; ?>>No (0)</option>
-                                </select>
-                            </td>
-                            <td>
-                                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <div class="acciones-admin-celda">
                                     <button type="submit" form="<?php echo $formIdP; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
-                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar al usuario <?php echo h($p['username']); ?> y todos sus datos?">
+                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar al usuario <?php echo h($p['username']); ?>?">
                                         <input type="hidden" name="entidad" value="persona">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="username" value="<?php echo h($p['username']); ?>">
@@ -310,10 +274,10 @@ try {
             </table>
         </div>
     </section>
-
+    
     <!-- 2. GESTIÓN DE JUEGOS -->
     <section class="pergamino">
-        <h3 class="seccion-titulo">2. Tabla Juego (Juegos Registrados: <?php echo count($juegos); ?>)</h3>
+        <h3 class="seccion-titulo">2. Juegos Registrados (<?php echo count($juegos); ?>)</h3>
         <div class="tabla-contenedor">
             <table class="tabla-taberna">
                 <thead>
@@ -353,7 +317,7 @@ try {
                             <td>
                                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                     <button type="submit" form="<?php echo $formIdJ; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
-                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar el juego <?php echo h($j['NombreJuego']); ?> y sus votos/victorias/reseñas?">
+                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar el juego <?php echo h($j['NombreJuego']); ?> y sus votos/victorias?">
                                         <input type="hidden" name="entidad" value="juego">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="NombreJuego" value="<?php echo h($j['NombreJuego']); ?>">
@@ -370,7 +334,7 @@ try {
 
     <!-- 3. GESTIÓN DE PERSONA_JUEGO (INTERESADOS) -->
     <section class="pergamino">
-        <h3 class="seccion-titulo">3. Tabla Persona_Juego (Interesados en Juegos: <?php echo count($relacionesPJ); ?>)</h3>
+        <h3 class="seccion-titulo">3. Interesados en Juegos (<?php echo count($relacionesPJ); ?>)</h3>
 
         <form method="POST" action="admin.php" class="pergamino-secundario" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
             <input type="hidden" name="entidad" value="persona_juego">
@@ -398,8 +362,8 @@ try {
             <table class="tabla-taberna">
                 <thead>
                     <tr>
-                        <th>Username (FK)</th>
-                        <th>NombreJuego (FK)</th>
+                        <th>Username</th>
+                        <th>NombreJuego</th>
                         <th style="width:210px;">Acciones</th>
                     </tr>
                 </thead>
@@ -452,15 +416,15 @@ try {
 
     <!-- 4. GESTIÓN DE VICTORIAS -->
     <section class="pergamino">
-        <h3 class="seccion-titulo">4. Tabla Victoria (Partidas Ganadas: <?php echo count($victorias); ?>)</h3>
+        <h3 class="seccion-titulo">4. Partidas Ganadas (<?php echo count($victorias); ?>)</h3>
         <div class="tabla-contenedor">
             <table class="tabla-taberna">
                 <thead>
                     <tr>
                         <th style="width:70px;">ID</th>
-                        <th>Ganador (username)</th>
-                        <th>Juego (NombreJuego)</th>
-                        <th>Fecha y Hora (YYYY-MM-DD HH:MM:SS)</th>
+                        <th>Ganador</th>
+                        <th>Juego</th>
+                        <th>Fecha y Hora</th>
                         <th style="width:210px;">Acciones</th>
                     </tr>
                 </thead>
@@ -480,7 +444,7 @@ try {
                                 <select form="<?php echo $formIdV; ?>" name="username" class="select-taberna">
                                     <?php foreach ($personas as $p): ?>
                                         <option value="<?php echo h($p['username']); ?>" <?php echo $p['username'] === $v['username'] ? 'selected' : ''; ?>>
-                                            <?php echo h($p['username']); ?> (<?php echo h($p['NombrePersona']); ?>)
+                                            <?php echo h($p['NombrePersona']); ?> (<?php echo h($p['username']); ?>)
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -590,7 +554,7 @@ try {
                     <tr>
                         <th style="width:70px;">ID Voto</th>
                         <th>Votación (ID)</th>
-                        <th>Usuario (username)</th>
+                        <th>Usuario</th>
                         <th>Juego Votado</th>
                         <th style="width:210px;">Acciones</th>
                     </tr>
@@ -650,104 +614,6 @@ try {
                 </tbody>
             </table>
         </div>
-    </section>
-
-    <!-- 7. SECCIÓN 7: GESTIÓN DE RESEÑAS DE LA LUDOTECA -->
-    <section class="pergamino">
-        <h3 class="seccion-titulo">7. Tabla Resenya (Reseñas de la Ludoteca: <?php echo count($resenyas); ?>)</h3>
-
-        <?php if (!$tablaResenyaActiva): ?>
-            <div class="alerta alerta-error">
-                La tabla <code>Resenya</code> aún no ha sido creada. Ejecuta el archivo <code>migration_ludoteca.sql</code> en phpMyAdmin para habilitar esta sección.
-            </div>
-        <?php else: ?>
-            <div class="tabla-contenedor">
-                <table class="tabla-taberna">
-                    <thead>
-                        <tr>
-                            <th style="width:65px;">ID</th>
-                            <th>Usuario (username)</th>
-                            <th>Juego (NombreJuego)</th>
-                            <th>¿Lo ha jugado?</th>
-                            <th>Calificación (1 a 5)</th>
-                            <th>Comentario / Crónica</th>
-                            <th style="width:200px;">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (count($resenyas) === 0): ?>
-                            <tr>
-                                <td colspan="7" style="text-align:center; font-style:italic;">
-                                    Todavía no existen reseñas registradas en la Ludoteca.
-                                </td>
-                            </tr>
-                        <?php else: ?>
-                            <?php foreach ($resenyas as $r): ?>
-                                <?php $formIdRes = 'form_res_' . (int)$r['id_resenya']; ?>
-                                <tr>
-                                    <td>
-                                        #<?php echo (int)$r['id_resenya']; ?>
-                                        <form id="<?php echo $formIdRes; ?>" method="POST" action="admin.php">
-                                            <input type="hidden" name="entidad" value="resenya">
-                                            <input type="hidden" name="operacion" value="editar">
-                                            <input type="hidden" name="id_resenya" value="<?php echo (int)$r['id_resenya']; ?>">
-                                        </form>
-                                    </td>
-                                    <td>
-                                        <select form="<?php echo $formIdRes; ?>" name="username" class="select-taberna">
-                                            <?php foreach ($personas as $p): ?>
-                                                <option value="<?php echo h($p['username']); ?>" <?php echo $p['username'] === $r['username'] ? 'selected' : ''; ?>>
-                                                    <?php echo h($p['username']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <select form="<?php echo $formIdRes; ?>" name="NombreJuego" class="select-taberna">
-                                            <?php foreach ($juegos as $j): ?>
-                                                <option value="<?php echo h($j['NombreJuego']); ?>" <?php echo $j['NombreJuego'] === $r['NombreJuego'] ? 'selected' : ''; ?>>
-                                                    <?php echo h($j['NombreJuego']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <select form="<?php echo $formIdRes; ?>" name="ha_jugado" class="select-taberna">
-                                            <option value="1" <?php echo (int)$r['ha_jugado'] === 1 ? 'selected' : ''; ?>>Sí (1)</option>
-                                            <option value="0" <?php echo (int)$r['ha_jugado'] === 0 ? 'selected' : ''; ?>>No (0)</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <select form="<?php echo $formIdRes; ?>" name="calificacion" class="select-taberna">
-                                            <option value="" <?php echo $r['calificacion'] === null ? 'selected' : ''; ?>>-- NULL (Sin calificar) --</option>
-                                            <?php foreach ($calificacionesValidas as $cVal): ?>
-                                                <option value="<?php echo h($cVal); ?>" <?php echo $r['calificacion'] === $cVal ? 'selected' : ''; ?>>
-                                                    <?php echo h($cVal); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <textarea form="<?php echo $formIdRes; ?>" name="comentario" rows="2" class="input-taberna"><?php echo h((string)$r['comentario']); ?></textarea>
-                                    </td>
-                                    <td>
-                                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                                            <button type="submit" form="<?php echo $formIdRes; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
-                                            <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar definitivamente la reseña #<?php echo (int)$r['id_resenya']; ?>?">
-                                                <input type="hidden" name="entidad" value="resenya">
-                                                <input type="hidden" name="operacion" value="eliminar">
-                                                <input type="hidden" name="id_resenya" value="<?php echo (int)$r['id_resenya']; ?>">
-                                                <button type="submit" class="btn btn-peligro btn-pequeno">Borrar</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php endif; ?>
     </section>
 
 </main>
