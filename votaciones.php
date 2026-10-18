@@ -205,13 +205,10 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                 }
                 $vMin = count($votosPorJuego) > 0 ? min($votosPorJuego) : 0;
                 ?>
-                <div class="votacion-bloque contraida">
-                    <div class="votacion-cabecera votacion-plegable" data-toggle-votacion>
+                <div class="votacion-bloque">
+                    <div class="votacion-cabecera">
                         <div>
-                            <h3 style="font-size:1.25rem; color:#23170f;">
-                                <span class="indicador-plegado">&#9654;</span>
-                                <?php echo h($vot['titulo']); ?>
-                            </h3>
+                            <h3 style="font-size:1.25rem; color:#23170f;"><?php echo h($vot['titulo']); ?></h3>
                             <p style="font-size:0.88rem;">
                                 Por <strong><?php echo h($vot['nombre_creador']); ?></strong>
                             </p>
@@ -223,13 +220,9 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                             <span class="etiqueta etiqueta-pendiente">
                                 Hasta: <?php echo h($vot['fecha_limite']); ?>
                             </span>
-                            <button type="button" class="btn btn-pequeno btn-toggle-texto" style="padding:3px 8px; font-size:0.8rem;">
-                                Desplegar
-                            </button>
                         </div>
                     </div>
 
-                    <div class="votacion-cuerpo">
                     <form method="POST" action="votaciones.php">
                         <input type="hidden" name="accion" value="emitir_voto">
                         <input type="hidden" name="id_votacion" value="<?php echo $idV; ?>">
@@ -275,7 +268,6 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
 
                         <button type="submit" class="btn btn-exito">Guardar mi Voto en «<?php echo h($vot['titulo']); ?>»</button>
                     </form>
-                    </div>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
