@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($accion === 'login') {
         $pestanaActiva = 'login';
         $username = isset($_POST['username']) ? trim($_POST['username']) : '';
-        $contrasenya = isset($_POST['contrasenya']) ? (string)$_POST['contrasenya'] : '';
+        $contrasenya = isset($_POST['contrasenya']) ? trim((string)$_POST['contrasenya']) : '';
 
         if ($username === '' || $contrasenya === '') {
             $mensajeError = 'Por favor, introduce tu nombre de usuario y tu contraseña.';
