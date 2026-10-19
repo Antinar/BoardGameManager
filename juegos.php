@@ -106,9 +106,7 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
         <div class="barra-titulo-filtro">
 
             <h2 class="seccion-titulo">Juegos que NO Tenemos</h2>
-            <div class="buscador-bloque">
-                <input type="text" class="input-taberna" placeholder="Filtrar juegos o interesados..." data-table-filter="tabla-juegos-deseados">
-            </div>
+            <?php renderizarBuscador('Filtrar juegos o interesados...', ['target_table' => 'tabla-juegos-deseados']); ?>
         </div>
         <p>
             Lista de juegos de interes para el grupo. Puedes apuntarte en los que te interese.

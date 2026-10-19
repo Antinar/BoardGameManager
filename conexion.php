@@ -163,4 +163,22 @@ function renderizarNavegacion($paginaActiva = '') {
     </nav>
     <?php
 }
+
+/**
+ * Componente reutilizable de buscador para tablas y cuadrículas de tarjetas.
+ *
+ * @param string $placeholder Texto de ayuda del input.
+ * @param array  $opciones    Opciones: 'id', 'target_table' (id de tabla), 'target_cards' (id contenedor de tarjetas), 'clase_contenedor'.
+ */
+function renderizarBuscador($placeholder = 'Buscar...', array $opciones = []) {
+    $idInput = isset($opciones['id']) && $opciones['id'] !== '' ? ' id="' . h($opciones['id']) . '"' : '';
+    $attrTabla = isset($opciones['target_table']) && $opciones['target_table'] !== '' ? ' data-table-filter="' . h($opciones['target_table']) . '"' : '';
+    $attrCards = isset($opciones['target_cards']) && $opciones['target_cards'] !== '' ? ' data-card-filter="' . h($opciones['target_cards']) . '"' : '';
+    $claseCont = isset($opciones['clase_contenedor']) && $opciones['clase_contenedor'] !== '' ? ' ' . h($opciones['clase_contenedor']) : '';
+    ?>
+    <div class="buscador-bloque<?php echo $claseCont; ?>">
+        <input type="text"<?php echo $idInput; ?> class="input-taberna" placeholder="<?php echo h($placeholder); ?>"<?php echo $attrTabla . $attrCards; ?>>
+    </div>
+    <?php
+}
 ?>

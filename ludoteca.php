@@ -305,9 +305,7 @@ if ($juegoDetalle) {
                         <option value="preferencias">Orden: Preferencias (Nota media)</option>
                     </select>
 
-                    <div class="buscador-bloque">
-                        <input type="text" id="buscador-ludoteca" class="input-taberna" placeholder="Buscar juego por nombre...">
-                    </div>
+                    <?php renderizarBuscador('Buscar juego por nombre...', ['id' => 'buscador-ludoteca']); ?>
                 </div>
             </div>
 

@@ -927,3 +927,29 @@ body {
         width: 100%;
     }
 }
+
+/* =========================================================================
+   BUSCADOR INTERNO, EDICIÓN Y ESTADO CERRADO EN VOTACIONES
+   ========================================================================= */
+.barra-buscador-votacion {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.panel-editar-votacion {
+    margin-bottom: 14px;
+    border: 2px solid #8c2d19;
+    background-color: #f2e8c9;
+}
+
+.etiqueta-cerrada {
+    background-color: #362417;
+    color: #e8dcb8;
+    border: 1px solid #1a110b;
+}
+
+.votacion-bloque.votacion-cerrada {
+    background-color: #d6c8a0;
+    border-color: #362417;
+}

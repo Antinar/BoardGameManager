@@ -89,18 +89,58 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-    // 5. Desplegar / Contraer bloques de votación
+    // 5. Desplegar / Contraer bloques de votación y panel de edición del creador
     var cabecerasVotacion = document.querySelectorAll('[data-toggle-votacion]');
     cabecerasVotacion.forEach(function (cabecera) {
-        cabecera.addEventListener('click', function () {
+        cabecera.addEventListener('click', function (e) {
+            if (e.target.closest('[data-toggle-editar-votacion]')) {
+                return;
+            }
             var bloque = cabecera.closest('.votacion-bloque');
             if (!bloque) return;
+            bloque.classList.toggle('contraida');
+        });
+    });
 
-            var estaContraida = bloque.classList.toggle('contraida');
-            var btnTexto = cabecera.querySelector('.btn-toggle-texto');
-            if (btnTexto) {
-                btnTexto.textContent = estaContraida ? 'Desplegar' : 'Contraer';
+    var botonesEditarVotacion = document.querySelectorAll('[data-toggle-editar-votacion]');
+    botonesEditarVotacion.forEach(function (boton) {
+        boton.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var idPanel = boton.getAttribute('data-toggle-editar-votacion');
+            var panel = document.getElementById(idPanel);
+            var bloque = boton.closest('.votacion-bloque');
+
+            // Si la votación estaba contraída al pulsar Editar, la desplegamos y abrimos el panel
+            if (bloque && bloque.classList.contains('contraida')) {
+                bloque.classList.remove('contraida');
+                if (panel) panel.classList.remove('panel-oculto');
+                return;
             }
+            if (panel) {
+                panel.classList.toggle('panel-oculto');
+            }
+        });
+    });
+
+    // 5.B. Componente universal de buscador para cuadrículas de tarjetas ([data-card-filter])
+    var buscadoresTarjetas = document.querySelectorAll('[data-card-filter]');
+    buscadoresTarjetas.forEach(function (inputBusqueda) {
+        inputBusqueda.addEventListener('input', function () {
+            var idContenedor = inputBusqueda.getAttribute('data-card-filter');
+            var contenedor = document.getElementById(idContenedor);
+            if (!contenedor) return;
+
+            var termino = inputBusqueda.value.toLowerCase().trim();
+            var tarjetas = contenedor.querySelectorAll('[data-card-item]');
+
+            tarjetas.forEach(function (tarjeta) {
+                var nombre = (tarjeta.getAttribute('data-nombre') || tarjeta.textContent || '').toLowerCase();
+                if (termino === '' || nombre.indexOf(termino) !== -1) {
+                    tarjeta.style.display = '';
+                } else {
+                    tarjeta.style.display = 'none';
+                }
+            });
         });
     });
     
