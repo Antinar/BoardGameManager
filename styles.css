@@ -853,8 +853,13 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-family: 'Times New Roman', Times, serif;
+    font-variant-numeric: lining-nums tabular-nums;
     font-weight: bold;
-    font-size: 0.92rem;
+    font-size: 0.95rem;
+    line-height: 1;
+    text-align: center;
+    padding: 0;
     z-index: 2;
 }
 
