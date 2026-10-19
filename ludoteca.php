@@ -73,7 +73,7 @@ if ($juegoSeleccionadoNombre !== '') {
     }
 }
 
-// Si estamos en la ficha de un juego, cargamos sus reseñas; si no, cargamos la cuadrícula de juegos
+// Si estamos en la ficha de un juego, cargamos sus reseñas; si no, cargamos la cuadrícula y las estadísticas
 if ($juegoDetalle) {
     $stmtRes = $pdo->prepare("
         SELECT r.id_resenya, r.username, p.NombrePersona, r.NombreJuego, r.ha_jugado, r.calificacion, r.comentario, r.fecha_resenya
@@ -95,6 +95,40 @@ if ($juegoDetalle) {
 } else {
     $stmtJuegos = $pdo->query("SELECT NombreJuego, Url FROM Juego WHERE lo_tenemos = 1 ORDER BY NombreJuego ASC");
     $juegosLudoteca = $stmtJuegos->fetchAll();
+
+    // Obtener todas las reseñas de los juegos de la ludoteca para calcular medias y el estado del usuario actual
+    $stmtTodasRes = $pdo->query("
+        SELECT r.username, r.NombreJuego, r.ha_jugado, r.calificacion
+        FROM Resenya r
+        INNER JOIN Juego j ON r.NombreJuego = j.NombreJuego AND j.lo_tenemos = 1
+    ");
+
+    $sumaNotasPorJuego = [];
+    $totalNotasPorJuego = [];
+    $miResenyaPorJuego = [];
+
+    foreach ($stmtTodasRes->fetchAll() as $filaR) {
+        $nJ = $filaR['NombreJuego'];
+        $jugo = (int)$filaR['ha_jugado'] === 1;
+        $numNota = array_search($filaR['calificacion'], $escalaCalificaciones, true);
+
+        // Solo cuentan para la media las reseñas jugadas que tengan calificación válida (1 a 5)
+        if ($jugo && $numNota !== false) {
+            if (!isset($sumaNotasPorJuego[$nJ])) {
+                $sumaNotasPorJuego[$nJ] = 0;
+                $totalNotasPorJuego[$nJ] = 0;
+            }
+            $sumaNotasPorJuego[$nJ] += (int)$numNota;
+            $totalNotasPorJuego[$nJ]++;
+        }
+
+        if ($filaR['username'] === $usuarioActual) {
+            $miResenyaPorJuego[$nJ] = [
+                'ha_jugado' => $jugo ? 1 : 0,
+                'nota_num'  => ($numNota !== false) ? (int)$numNota : null
+            ];
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -257,8 +291,23 @@ if ($juegoDetalle) {
                 <h2 class="seccion-titulo" style="margin-bottom:0; border-bottom:none;">
                     Ludoteca de la Taberna (<?php echo count($juegosLudoteca); ?>)
                 </h2>
-                <div class="buscador-bloque">
-                    <input type="text" id="buscador-ludoteca" class="input-taberna" placeholder="Buscar juego por nombre...">
+
+                <div class="controles-ludoteca">
+                    <select id="filtro-estado-ludoteca" class="select-taberna">
+                        <option value="todos">Todos los juegos</option>
+                        <option value="jugado">Jugados por mí</option>
+                        <option value="no_jugado">No jugados por mí</option>
+                        <option value="no_resenyado">No reseñados por mí</option>
+                    </select>
+
+                    <select id="orden-ludoteca" class="select-taberna">
+                        <option value="alfabetico">Orden: Alfabético (A - Z)</option>
+                        <option value="preferencias">Orden: Preferencias (Nota media)</option>
+                    </select>
+
+                    <div class="buscador-bloque">
+                        <input type="text" id="buscador-ludoteca" class="input-taberna" placeholder="Buscar juego por nombre...">
+                    </div>
                 </div>
             </div>
 
@@ -273,18 +322,72 @@ if ($juegoDetalle) {
             <?php else: ?>
                 <div class="grid-ludoteca" id="contenedor-ludoteca">
                     <?php foreach ($juegosLudoteca as $juego): ?>
-                        <?php $nombreJ = $juego['NombreJuego']; ?>
+                        <?php
+                        $nombreJ = $juego['NombreJuego'];
+
+                        // 1. Calcular nota media del juego (máximo 2 decimales, sin contar los no votados)
+                        $tieneMedia = isset($totalNotasPorJuego[$nombreJ]) && $totalNotasPorJuego[$nombreJ] > 0;
+                        if ($tieneMedia) {
+                            $mediaRedondeada = round($sumaNotasPorJuego[$nombreJ] / $totalNotasPorJuego[$nombreJ], 2);
+                            // Formatear con hasta 2 decimales eliminando ceros innecesarios (ej: 4.50 -> 4.5, 4.00 -> 4)
+                            $textoMedia = rtrim(rtrim(number_format($mediaRedondeada, 2, '.', ''), '0'), '.');
+                            $valorOrdenMedia = $mediaRedondeada;
+
+                            if ($mediaRedondeada >= 4.5) {
+                                $claseColorMedia = 'nota-verde-oscuro';
+                            } elseif ($mediaRedondeada >= 3.5) {
+                                $claseColorMedia = 'nota-verde-claro';
+                            } elseif ($mediaRedondeada >= 2.5) {
+                                $claseColorMedia = 'nota-amarillo';
+                            } else {
+                                $claseColorMedia = 'nota-rojo';
+                            }
+                        } else {
+                            $textoMedia = '-';
+                            $valorOrdenMedia = -1; // Para que al ordenar por preferencias quede debajo del todo
+                            $claseColorMedia = 'nota-gris';
+                        }
+
+                        // 2. Estado personal del usuario actual en este juego
+                        if (!isset($miResenyaPorJuego[$nombreJ])) {
+                            $miEstadoFiltro = 'no_resenyado';
+                            $textoMiEstado = 'No reseñado';
+                            $claseMiEstado = 'estado-no-resenyado';
+                        } elseif ($miResenyaPorJuego[$nombreJ]['ha_jugado'] === 1) {
+                            $miEstadoFiltro = 'jugado';
+                            $notaPropia = $miResenyaPorJuego[$nombreJ]['nota_num'];
+                            $textoMiEstado = 'Jugado - ' . ($notaPropia !== null ? $notaPropia : '?') . '/5';
+                            $claseMiEstado = 'estado-jugado';
+                        } else {
+                            $miEstadoFiltro = 'no_jugado';
+                            $textoMiEstado = 'No jugado';
+                            $claseMiEstado = 'estado-no-jugado';
+                        }
+                        ?>
                         <a href="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>"
                            class="tarjeta-ludoteca"
-                           data-nombre="<?php echo h($nombreJ); ?>">
+                           data-nombre="<?php echo h($nombreJ); ?>"
+                           data-mi-estado="<?php echo h($miEstadoFiltro); ?>"
+                           data-nota-media="<?php echo h($valorOrdenMedia); ?>">
+
                             <h3 class="tarjeta-ludoteca-titulo"><?php echo h($nombreJ); ?></h3>
-                            <img src="<?php echo h($juego['Url']); ?>" alt="<?php echo h($nombreJ); ?>">
+
+                            <div class="tarjeta-ludoteca-img-contenedor">
+                                <img src="<?php echo h($juego['Url']); ?>" alt="<?php echo h($nombreJ); ?>">
+                                <span class="insignia-nota-media <?php echo $claseColorMedia; ?>" title="Nota media de la Taberna">
+                                    <?php echo h($textoMedia); ?>
+                                </span>
+                            </div>
+
+                            <div class="tarjeta-ludoteca-estado <?php echo $claseMiEstado; ?>">
+                                <?php echo h($textoMiEstado); ?>
+                            </div>
                         </a>
                     <?php endforeach; ?>
                 </div>
 
                 <p id="ludoteca-sin-resultados" style="display:none; font-style:italic; margin-top:16px; text-align:center;">
-                    No se encontraron juegos en la ludoteca con ese nombre.
+                    No se encontraron juegos en la ludoteca que coincidan con los filtros seleccionados.
                 </p>
             <?php endif; ?>
         </section>

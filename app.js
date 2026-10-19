@@ -123,19 +123,53 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // 7. Buscador en tiempo real por nombre de juego en Ludoteca (ludoteca.php)
+    // 7. Buscador, filtro de estado personal y ordenación por preferencias en Ludoteca (ludoteca.php)
+    var contenedorLudoteca = document.getElementById('contenedor-ludoteca');
     var inputBuscarLudoteca = document.getElementById('buscador-ludoteca');
-    var tarjetasLudoteca = document.querySelectorAll('.tarjeta-ludoteca');
+    var selectFiltroLudoteca = document.getElementById('filtro-estado-ludoteca');
+    var selectOrdenLudoteca = document.getElementById('orden-ludoteca');
     var msgSinResultadosLudoteca = document.getElementById('ludoteca-sin-resultados');
 
-    if (inputBuscarLudoteca && tarjetasLudoteca.length > 0) {
-        inputBuscarLudoteca.addEventListener('input', function () {
-            var filtro = inputBuscarLudoteca.value.toLowerCase().trim();
-            var visibles = 0;
+    if (contenedorLudoteca) {
+        var tarjetasLudoteca = Array.prototype.slice.call(contenedorLudoteca.querySelectorAll('.tarjeta-ludoteca'));
 
+        function actualizarVistaLudoteca() {
+            var texto = inputBuscarLudoteca ? inputBuscarLudoteca.value.toLowerCase().trim() : '';
+            var estadoFiltro = selectFiltroLudoteca ? selectFiltroLudoteca.value : 'todos';
+            var criterioOrden = selectOrdenLudoteca ? selectOrdenLudoteca.value : 'alfabetico';
+
+            // 1. Ordenar las tarjetas en memoria según el criterio elegido
+            tarjetasLudoteca.sort(function (a, b) {
+                var nombreA = (a.getAttribute('data-nombre') || '').toLowerCase();
+                var nombreB = (b.getAttribute('data-nombre') || '').toLowerCase();
+
+                if (criterioOrden === 'preferencias') {
+                    var notaA = parseFloat(a.getAttribute('data-nota-media'));
+                    var notaB = parseFloat(b.getAttribute('data-nota-media'));
+                    if (isNaN(notaA)) notaA = -1;
+                    if (isNaN(notaB)) notaB = -1;
+
+                    // De mayor a menor nota media (los de -1 sin nota quedan al final del todo)
+                    if (notaB !== notaA) {
+                        return notaB - notaA;
+                    }
+                }
+                // Desempate o criterio alfabético por defecto
+                return nombreA.localeCompare(nombreB, 'es');
+            });
+
+            // 2. Reinsertar en el DOM en el nuevo orden y aplicar filtros de visibilidad
+            var visibles = 0;
             tarjetasLudoteca.forEach(function (tarjeta) {
+                contenedorLudoteca.appendChild(tarjeta);
+
                 var nombre = (tarjeta.getAttribute('data-nombre') || '').toLowerCase();
-                if (filtro === '' || nombre.indexOf(filtro) !== -1) {
+                var miEstado = tarjeta.getAttribute('data-mi-estado') || '';
+
+                var coincideNombre = (texto === '' || nombre.indexOf(texto) !== -1);
+                var coincideEstado = (estadoFiltro === 'todos' || miEstado === estadoFiltro);
+
+                if (coincideNombre && coincideEstado) {
                     tarjeta.style.display = '';
                     visibles++;
                 } else {
@@ -146,6 +180,16 @@ document.addEventListener('DOMContentLoaded', function () {
             if (msgSinResultadosLudoteca) {
                 msgSinResultadosLudoteca.style.display = (visibles === 0) ? 'block' : 'none';
             }
-        });
+        }
+
+        if (inputBuscarLudoteca) {
+            inputBuscarLudoteca.addEventListener('input', actualizarVistaLudoteca);
+        }
+        if (selectFiltroLudoteca) {
+            selectFiltroLudoteca.addEventListener('change', actualizarVistaLudoteca);
+        }
+        if (selectOrdenLudoteca) {
+            selectOrdenLudoteca.addEventListener('change', actualizarVistaLudoteca);
+        }
     }
 });

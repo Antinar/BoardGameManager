@@ -822,3 +822,103 @@ body {
         margin: 0 auto;
     }
 }
+
+/* Controles de filtro, ordenación y búsqueda en Ludoteca */
+.controles-ludoteca {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.controles-ludoteca .select-taberna {
+    width: auto;
+    min-width: 210px;
+}
+
+/* Contenedor relativo para posicionar el círculo de nota media en la esquina superior derecha */
+.tarjeta-ludoteca-img-contenedor {
+    position: relative;
+    width: 100%;
+}
+
+.insignia-nota-media {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 2px solid #1a110b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.92rem;
+    z-index: 2;
+}
+
+/* Colores del círculo según nota media */
+.insignia-nota-media.nota-verde-oscuro {
+    background-color: #1f5c18;
+    color: #f7f1df;
+}
+
+.insignia-nota-media.nota-verde-claro {
+    background-color: #4d8c3a;
+    color: #f7f1df;
+}
+
+.insignia-nota-media.nota-amarillo {
+    background-color: #c99a18;
+    color: #1a110b;
+}
+
+.insignia-nota-media.nota-rojo {
+    background-color: #9e2515;
+    color: #f7f1df;
+}
+
+.insignia-nota-media.nota-gris {
+    background-color: #6e6a63;
+    color: #f7f1df;
+}
+
+/* Estado personal debajo de la foto del juego */
+.tarjeta-ludoteca-estado {
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    padding: 5px 8px;
+    border: 1px solid #4a3219;
+    border-radius: 2px;
+}
+
+.tarjeta-ludoteca-estado.estado-jugado {
+    background-color: #2e5a27;
+    color: #f7f1df;
+    border-color: #1a110b;
+}
+
+.tarjeta-ludoteca-estado.estado-no-jugado {
+    background-color: #8c2d19;
+    color: #f7f1df;
+    border-color: #1a110b;
+}
+
+.tarjeta-ludoteca-estado.estado-no-resenyado {
+    background-color: #cfc096;
+    color: #362417;
+    border-color: #4a3219;
+}
+
+@media (max-width: 768px) {
+    .controles-ludoteca {
+        width: 100%;
+    }
+
+    .controles-ludoteca .select-taberna,
+    .controles-ludoteca .buscador-bloque {
+        width: 100%;
+    }
+}
