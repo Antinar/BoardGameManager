@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pestanaActiva = 'registro';
         $username = isset($_POST['username']) ? trim($_POST['username']) : '';
         $nombrePersona = isset($_POST['NombrePersona']) ? trim($_POST['NombrePersona']) : '';
-        $contrasenya = isset($_POST['contrasenya']) ? (string)$_POST['contrasenya'] : '';
+        $contrasenya = isset($_POST['contrasenya']) ? (string)trim($_POST['contrasenya']) : '';
 
         if ($username === '' || $nombrePersona === '' || $contrasenya === '') {
             $mensajeError = 'Todos los campos son obligatorios para inscribirse en el libro de la taberna.';
