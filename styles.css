@@ -953,3 +953,52 @@ body {
     background-color: #d6c8a0;
     border-color: #362417;
 }
+
+/* =========================================================================
+   SELECTOR MULTISELECCIÓN CON BUSCADOR (PROPIETARIOS) Y TEXTO DE JUEGOS
+   ========================================================================= */
+.multiselect-taberna {
+    background-color: #e8dcb8;
+    border: 2px solid #4a3219;
+    padding: 8px;
+    border-radius: 2px;
+}
+
+.multiselect-lista {
+    max-height: 150px;
+    overflow-y: auto;
+    background-color: #f7f1df;
+    border: 1px solid #4a3219;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.multiselect-opcion {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    cursor: pointer;
+    font-weight: normal;
+    color: #23170f;
+    border-bottom: 1px solid #dfd1a7;
+}
+
+.multiselect-opcion:last-child {
+    border-bottom: none;
+}
+
+.multiselect-opcion:hover {
+    background-color: #f7ecc9;
+}
+
+.texto-largo-juego {
+    background-color: #f7f1df;
+    border: 1px solid #4a3219;
+    padding: 10px 12px;
+    margin-top: 4px;
+    line-height: 1.5;
+    color: #1f140e;
+}

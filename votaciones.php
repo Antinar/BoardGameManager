@@ -23,7 +23,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $stmtIns = $pdo->prepare("INSERT INTO Votacion (titulo, creador_username, fecha_limite, tipo_voto) VALUES (?, ?, ?, ?)");
             $stmtIns->execute([$titulo, $usuarioActual, $fechaLimite, $tipoVoto]);
+
+            $nombreCreador = isset($_SESSION['NombrePersona']) ? $_SESSION['NombrePersona'] : $usuarioActual;
+            $correosEnviados = notificarNuevaVotacionPorEmail($pdo, $titulo, $fechaLimite, $tipoVoto, $nombreCreador);
+
             $mensajeExito = "La votación «{$titulo}» ha quedado abierta hasta el día {$fechaLimite}.";
+            if ($correosEnviados > 0) {
+                $mensajeExito .= " Se ha enviado aviso por correo a {$correosEnviados} miembro(s).";
+            }
         }
     }
 
@@ -143,25 +150,32 @@ $stmtVotaciones = $pdo->query("
 ");
 $votacionesVisibles = $stmtVotaciones->fetchAll();
 
-// Obtener todos los votos de las votaciones visibles (activas y recién cerradas)
+// Obtener todos los votos de las votaciones visibles (activas y recién cerradas) junto con el nombre del votante
 $stmtVotos = $pdo->query("
-    SELECT vt.id_votacion, vt.NombreJuego, vt.username
+    SELECT vt.id_votacion, vt.NombreJuego, vt.username, p.NombrePersona
     FROM Voto vt
     INNER JOIN Votacion v ON vt.id_votacion = v.id_votacion
+    INNER JOIN Persona p ON vt.username = p.username
     WHERE v.fecha_limite >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+    ORDER BY p.NombrePersona ASC
 ");
-$conteoVotos = [];      // $conteoVotos[$id_votacion][$NombreJuego] = total
-$votosDeUsuario = [];   // $votosDeUsuario[$id_votacion][$NombreJuego] = true
+$conteoVotos = [];          // $conteoVotos[$id_votacion][$NombreJuego] = total
+$votosDeUsuario = [];       // $votosDeUsuario[$id_votacion][$NombreJuego] = true
+$votantesPorVotacion = [];  // $votantesPorVotacion[$id_votacion][$username] = NombrePersona
 
 foreach ($stmtVotos->fetchAll() as $filaVoto) {
     $idV = (int)$filaVoto['id_votacion'];
     $nomJ = $filaVoto['NombreJuego'];
+    $userV = $filaVoto['username'];
+
     if (!isset($conteoVotos[$idV][$nomJ])) {
         $conteoVotos[$idV][$nomJ] = 0;
     }
     $conteoVotos[$idV][$nomJ]++;
 
-    if ($filaVoto['username'] === $usuarioActual) {
+    $votantesPorVotacion[$idV][$userV] = $filaVoto['NombrePersona'];
+
+    if ($userV === $usuarioActual) {
         $votosDeUsuario[$idV][$nomJ] = true;
     }
 }
@@ -308,6 +322,24 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                     </div>
 
                     <div class="votacion-cuerpo">
+                        <?php
+                        $listaParticipantes = isset($votantesPorVotacion[$idV]) ? $votantesPorVotacion[$idV] : [];
+                        ?>
+                        <div class="pergamino-secundario" style="margin-bottom:12px; padding:10px 12px;">
+                            <strong>Han votado en esta convocatoria (<?php echo count($listaParticipantes); ?>):</strong>
+                            <?php if (count($listaParticipantes) === 0): ?>
+                                <em style="color:#5a4634;">Todavía no ha votado nadie.</em>
+                            <?php else: ?>
+                                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
+                                    <?php foreach ($listaParticipantes as $uPart => $nomPart): ?>
+                                        <span class="etiqueta etiqueta-disponible">
+                                            <?php echo h($nomPart); ?> (<?php echo h($uPart); ?>)
+                                        </span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
                         <?php if (!$estaCerrada && $soyCreador): ?>
                             <!-- Panel de edición / cierre exclusivo para el creador de la votación -->
                             <div id="panel_editar_vot_<?php echo $idV; ?>" class="pergamino-secundario panel-editar-votacion panel-oculto">

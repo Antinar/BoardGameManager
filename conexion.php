@@ -40,7 +40,7 @@ function requerirLogin(PDO $pdo) {
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT username, NombrePersona, rol FROM Persona WHERE username = ?");
+    $stmt = $pdo->prepare("SELECT username, NombrePersona, email, rol FROM Persona WHERE username = ?");
     $stmt->execute([$_SESSION['username']]);
     $usuario = $stmt->fetch();
 
@@ -53,6 +53,7 @@ function requerirLogin(PDO $pdo) {
 
     $_SESSION['username']      = $usuario['username'];
     $_SESSION['NombrePersona'] = $usuario['NombrePersona'];
+    $_SESSION['email']         = $usuario['email'];
     $_SESSION['rol']           = $usuario['rol'];
 }
 
@@ -146,6 +147,7 @@ function renderizarNavegacion($paginaActiva = '') {
                     <span class="insignia-rol">[Admin]</span>
                 <?php endif; ?>
             </span>
+            <a href="perfil.php" class="btn btn-bronce btn-pequeno <?php echo $paginaActiva === 'perfil' ? 'activo' : ''; ?>">Mi Perfil</a>
             <a href="logout.php" class="btn btn-peligro btn-pequeno">Salir</a>
         </div>
     </header>
@@ -180,5 +182,155 @@ function renderizarBuscador($placeholder = 'Buscar...', array $opciones = []) {
         <input type="text"<?php echo $idInput; ?> class="input-taberna" placeholder="<?php echo h($placeholder); ?>"<?php echo $attrTabla . $attrCards; ?>>
     </div>
     <?php
+}
+
+// Cargar configuración SMTP generada por GitHub Actions si existe
+if (file_exists(__DIR__ . '/smtp_config.php')) {
+    require_once __DIR__ . '/smtp_config.php';
+}
+
+/**
+ * Lee la respuesta del servidor SMTP.
+ */
+function leerRespuestaSMTP($socket) {
+    $respuesta = '';
+    while ($linea = fgets($socket, 515)) {
+        $respuesta .= $linea;
+        if (isset($linea[3]) && $linea[3] === ' ') {
+            break;
+        }
+    }
+    return $respuesta;
+}
+
+/**
+ * Envía un comando SMTP y verifica el código de estado esperado.
+ */
+function comandoSMTP($socket, $comando, array $codigosValidos = [250]) {
+    if ($comando !== null) {
+        fwrite($socket, $comando . "\r\n");
+    }
+    $respuesta = leerRespuestaSMTP($socket);
+    $codigo = (int)substr($respuesta, 0, 3);
+    return in_array($codigo, $codigosValidos, true);
+}
+
+/**
+ * Envía un correo electrónico mediante conexión directa SMTP + STARTTLS (Gmail).
+ */
+function enviarCorreoSMTP($destinatarioEmail, $destinatarioNombre, $asunto, $cuerpoHtml) {
+    $host = defined('SMTP_HOST') ? SMTP_HOST : (getenv('SMTP_HOST') ?: 'smtp.gmail.com');
+    $port = defined('SMTP_PORT') ? (int)SMTP_PORT : (int)(getenv('SMTP_PORT') ?: 587);
+    $user = defined('SMTP_USER') ? SMTP_USER : (getenv('SMTP_USER') ?: '');
+    $pass = str_replace(' ', '', defined('SMTP_PASS') ? SMTP_PASS : (getenv('SMTP_PASS') ?: ''));
+    $from = defined('SMTP_FROM') ? SMTP_FROM : (getenv('SMTP_FROM') ?: $user);
+    $fromName = defined('SMTP_FROM_NAME') ? SMTP_FROM_NAME : 'La Taberna de las Gatitas Jugonas';
+
+    if ($user === '' || $pass === '' || $from === '' || $destinatarioEmail === '') {
+        return false;
+    }
+
+    $contexto = stream_context_create([
+        'ssl' => [
+            'verify_peer'       => false,
+            'verify_peer_name'  => false,
+            'allow_self_signed' => true
+        ]
+    ]);
+
+    $socket = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, 10, STREAM_CLIENT_CONNECT, $contexto);
+    if (!$socket) {
+        return false;
+    }
+    stream_set_timeout($socket, 10);
+
+    if (!comandoSMTP($socket, null, [220])) { fclose($socket); return false; }
+    if (!comandoSMTP($socket, "EHLO gatitasjugonas.gt.tc", [250])) { fclose($socket); return false; }
+
+    if ($port === 587) {
+        if (!comandoSMTP($socket, "STARTTLS", [220])) { fclose($socket); return false; }
+        if (!@stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+            fclose($socket);
+            return false;
+        }
+        if (!comandoSMTP($socket, "EHLO gatitasjugonas.gt.tc", [250])) { fclose($socket); return false; }
+    }
+
+    if (!comandoSMTP($socket, "AUTH LOGIN", [334])) { fclose($socket); return false; }
+    if (!comandoSMTP($socket, base64_encode($user), [334])) { fclose($socket); return false; }
+    if (!comandoSMTP($socket, base64_encode($pass), [235])) { fclose($socket); return false; }
+
+    if (!comandoSMTP($socket, "MAIL FROM:<{$from}>", [250])) { fclose($socket); return false; }
+    if (!comandoSMTP($socket, "RCPT TO:<{$destinatarioEmail}>", [250, 251])) { fclose($socket); return false; }
+    if (!comandoSMTP($socket, "DATA", [354])) { fclose($socket); return false; }
+
+    $asuntoCodificado = '=?UTF-8?B?' . base64_encode($asunto) . '?=';
+    $remitenteCodificado = '=?UTF-8?B?' . base64_encode($fromName) . '?=';
+    $destCodificado = '=?UTF-8?B?' . base64_encode($destinatarioNombre) . '?=';
+
+    $cabeceras  = "Date: " . date('r') . "\r\n";
+    $cabeceras .= "From: {$remitenteCodificado} <{$from}>\r\n";
+    $cabeceras .= "To: {$destCodificado} <{$destinatarioEmail}>\r\n";
+    $cabeceras .= "Subject: {$asuntoCodificado}\r\n";
+    $cabeceras .= "MIME-Version: 1.0\r\n";
+    $cabeceras .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $cabeceras .= "Content-Transfer-Encoding: base64\r\n\r\n";
+
+    $mensajeFinal = $cabeceras . chunk_split(base64_encode($cuerpoHtml)) . "\r\n.";
+    $exito = comandoSMTP($socket, $mensajeFinal, [250]);
+
+    comandoSMTP($socket, "QUIT", [221, 250]);
+    fclose($socket);
+    return $exito;
+}
+
+/**
+ * Envía un correo a todos los usuarios con email registrado cuando se abre una nueva votación.
+ */
+function notificarNuevaVotacionPorEmail(PDO $pdo, $tituloVotacion, $fechaLimite, $tipoVoto, $creadorNombre) {
+    $stmt = $pdo->query("SELECT NombrePersona, email FROM Persona WHERE email IS NOT NULL AND TRIM(email) <> ''");
+    $destinatarios = $stmt->fetchAll();
+
+    if (count($destinatarios) === 0) {
+        return 0;
+    }
+
+    $tipoTexto = ($tipoVoto === 'multiple') ? 'Voto Múltiple (varios juegos)' : 'Voto Único (un solo juego)';
+    $asunto = "Nueva votación en la Taberna: «{$tituloVotacion}»";
+    $enviados = 0;
+
+    foreach ($destinatarios as $dest) {
+        $email = trim($dest['email']);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            continue;
+        }
+        $nombre = $dest['NombrePersona'];
+        $cuerpo = "
+        <div style='background-color:#e8dcb8; border:3px solid #362417; padding:20px; color:#23170f; font-family:Georgia, serif;'>
+            <h2 style='color:#362417; border-bottom:2px solid #4a3219; padding-bottom:8px; margin-top:0;'>
+                La Taberna de las Gatitas Jugonas
+            </h2>
+            <p>¡Hola, <strong>" . h($nombre) . "</strong>!</p>
+            <p><strong>" . h($creadorNombre) . "</strong> acaba de convocar una nueva votación de juegos en la taberna:</p>
+            <div style='background-color:#dfd1a7; border:2px solid #4a3219; padding:12px; margin:14px 0;'>
+                <p style='margin:4px 0;'><strong>Motivo / Título:</strong> " . h($tituloVotacion) . "</p>
+                <p style='margin:4px 0;'><strong>Modalidad:</strong> " . h($tipoTexto) . "</p>
+                <p style='margin:4px 0;'><strong>Fecha límite para votar:</strong> " . h($fechaLimite) . "</p>
+            </div>
+            <p>Entra en la taberna para dejar tu voto:</p>
+            <p>
+                <a href='https://gatitasjugonas.gt.tc/votaciones.php'
+                   style='display:inline-block; background-color:#8c2d19; color:#f7f1df; padding:10px 16px; text-decoration:none; font-weight:bold; border:2px solid #1a110b;'>
+                    Ir al Consejo de Votos
+                </a>
+            </p>
+        </div>";
+
+        if (enviarCorreoSMTP($email, $nombre, $asunto, $cuerpo)) {
+            $enviados++;
+        }
+    }
+
+    return $enviados;
 }
 ?>

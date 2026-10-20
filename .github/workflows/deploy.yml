@@ -11,6 +11,18 @@ jobs:
       - name: Obtener codigo del repositorio
         uses: actions/checkout@v4
 
+      - name: Generar configuracion SMTP segura desde GitHub Secrets
+        run: |
+          cat << 'EOF' > smtp_config.php
+          <?php
+          define('SMTP_HOST', 'smtp.gmail.com');
+          define('SMTP_PORT', 587);
+          define('SMTP_USER', '${{ secrets.SMTP_USER }}');
+          define('SMTP_PASS', '${{ secrets.SMTP_PASS }}');
+          define('SMTP_FROM', '${{ secrets.SMTP_USER }}');
+          define('SMTP_FROM_NAME', 'La Taberna de las Gatitas Jugonas');
+          EOF
+
       - name: Sincronizar archivos con InfinityFree
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:

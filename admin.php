@@ -18,15 +18,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $originalUsername = $_POST['original_username'];
                 $nuevoUsername = trim($_POST['username']);
                 $nombrePersona = trim($_POST['NombrePersona']);
+                $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+                $emailGuardar = ($email !== '') ? $email : null;
                 $contrasenya = (string)$_POST['contrasenya'];
                 $rol = ($_POST['rol'] === 'admin') ? 'admin' : 'jugador';
 
-                $stmt = $pdo->prepare("UPDATE Persona SET username = ?, NombrePersona = ?, contrasenya = ?, rol = ?, inscrito_leaderboard = 1 WHERE username = ?");
-                $stmt->execute([$nuevoUsername, $nombrePersona, $contrasenya, $rol, $originalUsername]);
+                $stmt = $pdo->prepare("UPDATE Persona SET username = ?, NombrePersona = ?, email = ?, contrasenya = ?, rol = ?, inscrito_leaderboard = 1 WHERE username = ?");
+                $stmt->execute([$nuevoUsername, $nombrePersona, $emailGuardar, $contrasenya, $rol, $originalUsername]);
 
                 if ($_SESSION['username'] === $originalUsername) {
                     $_SESSION['username'] = $nuevoUsername;
                     $_SESSION['NombrePersona'] = $nombrePersona;
+                    $_SESSION['email'] = $emailGuardar;
                     $_SESSION['rol'] = $rol;
                 }
                 $mensajeExito = "Usuario «{$originalUsername}» actualizado.";
@@ -42,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // =====================================================================
-        // 2. CRUD TABLA JUEGO
+        // 2. CRUD TABLA JUEGO (INCLUYENDO PROPIETARIOS Y NUEVOS CAMPOS)
         // =====================================================================
         elseif ($entidad === 'juego') {
             if ($operacion === 'editar') {
@@ -50,6 +53,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $nuevoNombre = trim($_POST['NombreJuego']);
                 $urlActual = trim($_POST['Url']);
                 $loTenemos = (isset($_POST['lo_tenemos']) && $_POST['lo_tenemos'] === '1') ? 1 : 0;
+                $minJug = max(1, (int)(isset($_POST['min_jugadores']) ? $_POST['min_jugadores'] : 1));
+                $maxJug = max($minJug, (int)(isset($_POST['max_jugadores']) ? $_POST['max_jugadores'] : $minJug));
+                $descJ = isset($_POST['descripcion']) && trim($_POST['descripcion']) !== '' ? trim($_POST['descripcion']) : null;
+                $reglasJ = isset($_POST['reglas']) && trim($_POST['reglas']) !== '' ? trim($_POST['reglas']) : null;
+                $propietariosSel = (isset($_POST['propietarios']) && is_array($_POST['propietarios'])) ? $_POST['propietarios'] : [];
 
                 if (isset($_FILES['nueva_imagen']) && $_FILES['nueva_imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
                     $errImg = '';
@@ -57,20 +65,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($nuevaRuta === false) {
                         throw new Exception($errImg);
                     }
-                    // Borrar archivo antiguo si estaba en uploads/
-                    if (strpos($urlActual, 'uploads/') === 0 && file_exists(__DIR__ . '/' . $urlActual)) {
-                        @unlink(__DIR__ . '/' . $urlActual);
-                    }
                     $urlActual = $nuevaRuta;
                 }
 
-                $stmt = $pdo->prepare("UPDATE Juego SET NombreJuego = ?, Url = ?, lo_tenemos = ? WHERE NombreJuego = ?");
-                $stmt->execute([$nuevoNombre, $urlActual, $loTenemos, $originalNombre]);
+                $stmt = $pdo->prepare("
+                    UPDATE Juego
+                    SET NombreJuego = ?, Url = ?, lo_tenemos = ?, min_jugadores = ?, max_jugadores = ?, descripcion = ?, reglas = ?
+                    WHERE NombreJuego = ?
+                ");
+                $stmt->execute([$nuevoNombre, $urlActual, $loTenemos, $minJug, $maxJug, $descJ, $reglasJ, $originalNombre]);
 
-                // Si pasa a "Ya lo tenemos", limpiamos sus interesados de Persona_Juego
+                // Sincronizar propietarios del juego
+                $stmtDelProps = $pdo->prepare("DELETE FROM Juego_Propietario WHERE NombreJuego = ?");
+                $stmtDelProps->execute([$nuevoNombre]);
+
                 if ($loTenemos === 1) {
                     $stmtClean = $pdo->prepare("DELETE FROM Persona_Juego WHERE NombreJuego = ?");
                     $stmtClean->execute([$nuevoNombre]);
+
+                    if (count($propietariosSel) > 0) {
+                        $stmtInsProp = $pdo->prepare("INSERT IGNORE INTO Juego_Propietario (username, NombreJuego) VALUES (?, ?)");
+                        foreach ($propietariosSel as $uProp) {
+                            $uPropLimpio = trim((string)$uProp);
+                            if ($uPropLimpio !== '') {
+                                $stmtInsProp->execute([$uPropLimpio, $nuevoNombre]);
+                            }
+                        }
+                    }
                 }
 
                 $mensajeExito = "Juego «{$originalNombre}» actualizado.";
@@ -253,6 +274,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Consultas de todas las tablas instanciadas en la base de datos
 $personas = $pdo->query("SELECT * FROM Persona ORDER BY username ASC")->fetchAll();
 $juegos = $pdo->query("SELECT * FROM Juego ORDER BY NombreJuego ASC")->fetchAll();
+$propietariosPorJuego = [];
+foreach ($pdo->query("SELECT username, NombreJuego FROM Juego_Propietario")->fetchAll() as $fp) {
+    $propietariosPorJuego[$fp['NombreJuego']][$fp['username']] = true;
+}
 $relacionesPJ = $pdo->query("SELECT * FROM Persona_Juego ORDER BY NombreJuego ASC, username ASC")->fetchAll();
 $victorias = $pdo->query("SELECT * FROM Victoria ORDER BY id_victoria DESC")->fetchAll();
 $votaciones = $pdo->query("SELECT * FROM Votacion ORDER BY id_votacion DESC")->fetchAll();
@@ -304,6 +329,7 @@ $escalaAdminResenyas = [
                     <tr>
                         <th>Username (PK)</th>
                         <th>Nombre y Apellidos</th>
+                        <th>Email</th>
                         <th>Contraseña</th>
                         <th>Rol</th>
                         <th style="width:190px;">Acciones</th>
@@ -323,6 +349,9 @@ $escalaAdminResenyas = [
                             </td>
                             <td>
                                 <input type="text" form="<?php echo $formIdP; ?>" name="NombrePersona" value="<?php echo h($p['NombrePersona']); ?>" class="input-taberna" required maxlength="120">
+                            </td>
+                            <td>
+                                <input type="email" form="<?php echo $formIdP; ?>" name="email" value="<?php echo h((string)$p['email']); ?>" class="input-taberna" maxlength="150" placeholder="Sin email">
                             </td>
                             <td>
                                 <input type="text" form="<?php echo $formIdP; ?>" name="contrasenya" value="<?php echo h($p['contrasenya']); ?>" class="input-taberna" required>
@@ -350,7 +379,7 @@ $escalaAdminResenyas = [
             </table>
         </div>
     </section>
-    
+
     <!-- 2. GESTIÓN DE JUEGOS -->
     <section class="pergamino">
         <h3 class="seccion-titulo">2. Juegos Registrados (<?php echo count($juegos); ?>)</h3>
@@ -359,44 +388,73 @@ $escalaAdminResenyas = [
                 <thead>
                     <tr>
                         <th style="width:95px;">Miniatura</th>
-                        <th>NombreJuego (PK)</th>
-                        <th>Ruta Imagen (Url) / Subir Nueva</th>
-                        <th>¿Lo tenemos?</th>
-                        <th style="width:210px;">Acciones</th>
+                        <th style="min-width:170px;">Nombre y Estado</th>
+                        <th style="min-width:130px;">Jugadores (Mín/Máx)</th>
+                        <th style="min-width:220px;">Descripción y Reglas</th>
+                        <th style="min-width:220px;">Propietarios (Si lo tenemos)</th>
+                        <th style="min-width:190px;">Imagen (Url)</th>
+                        <th style="width:170px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($juegos as $j): ?>
-                        <?php $formIdJ = 'form_j_' . md5($j['NombreJuego']); ?>
+                        <?php
+                        $nomJ = $j['NombreJuego'];
+                        $formIdJ = 'form_j_' . md5($nomJ);
+                        $loTen = ((int)$j['lo_tenemos'] === 1);
+                        ?>
                         <tr>
                             <td>
-                                <img src="<?php echo h($j['Url']); ?>" alt="<?php echo h($j['NombreJuego']); ?>" class="img-juego-tabla">
+                                <img src="<?php echo h($j['Url']); ?>" alt="<?php echo h($nomJ); ?>" class="img-juego-tabla">
                             </td>
                             <td>
                                 <form id="<?php echo $formIdJ; ?>" method="POST" action="admin.php" enctype="multipart/form-data">
                                     <input type="hidden" name="entidad" value="juego">
                                     <input type="hidden" name="operacion" value="editar">
-                                    <input type="hidden" name="original_NombreJuego" value="<?php echo h($j['NombreJuego']); ?>">
+                                    <input type="hidden" name="original_NombreJuego" value="<?php echo h($nomJ); ?>">
                                 </form>
-                                <input type="text" form="<?php echo $formIdJ; ?>" name="NombreJuego" value="<?php echo h($j['NombreJuego']); ?>" class="input-taberna" required maxlength="120">
+                                <input type="text" form="<?php echo $formIdJ; ?>" name="NombreJuego" value="<?php echo h($nomJ); ?>" class="input-taberna" required maxlength="120" style="margin-bottom:6px;">
+                                <select form="<?php echo $formIdJ; ?>" name="lo_tenemos" class="select-taberna">
+                                    <option value="0" <?php echo !$loTen ? 'selected' : ''; ?>>0 - No lo tenemos</option>
+                                    <option value="1" <?php echo $loTen ? 'selected' : ''; ?>>1 - Ya lo tenemos</option>
+                                </select>
+                            </td>
+                            <td>
+                                <div style="display:flex; gap:6px; align-items:center;">
+                                    <input type="number" form="<?php echo $formIdJ; ?>" name="min_jugadores" value="<?php echo (int)$j['min_jugadores']; ?>" class="input-taberna" required min="1" max="99" title="Mínimo">
+                                    <span>a</span>
+                                    <input type="number" form="<?php echo $formIdJ; ?>" name="max_jugadores" value="<?php echo (int)$j['max_jugadores']; ?>" class="input-taberna" required min="1" max="99" title="Máximo">
+                                </div>
+                            </td>
+                            <td>
+                                <textarea form="<?php echo $formIdJ; ?>" name="descripcion" class="input-taberna" rows="2" placeholder="Descripción..." style="margin-bottom:6px;"><?php echo h((string)$j['descripcion']); ?></textarea>
+                                <textarea form="<?php echo $formIdJ; ?>" name="reglas" class="input-taberna" rows="2" placeholder="Reglas..."><?php echo h((string)$j['reglas']); ?></textarea>
+                            </td>
+                            <td>
+                                <div class="multiselect-taberna" data-multiselect>
+                                    <input type="text" class="input-taberna" placeholder="Buscar propietario..." data-multiselect-search style="margin-bottom:4px; padding:4px 6px; font-size:0.85rem;">
+                                    <div class="multiselect-lista" style="max-height:95px;">
+                                        <?php foreach ($personas as $per): ?>
+                                            <?php $esProp = isset($propietariosPorJuego[$nomJ][$per['username']]); ?>
+                                            <label class="multiselect-opcion" data-multiselect-item data-nombre="<?php echo h($per['NombrePersona'] . ' ' . $per['username']); ?>">
+                                                <input type="checkbox" form="<?php echo $formIdJ; ?>" name="propietarios[]" value="<?php echo h($per['username']); ?>" <?php echo $esProp ? 'checked' : ''; ?>>
+                                                <?php echo h($per['NombrePersona']); ?> (<?php echo h($per['username']); ?>)
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
                             </td>
                             <td>
                                 <input type="text" form="<?php echo $formIdJ; ?>" name="Url" value="<?php echo h($j['Url']); ?>" class="input-taberna" required style="margin-bottom:6px;">
                                 <input type="file" form="<?php echo $formIdJ; ?>" name="nueva_imagen" class="input-taberna" accept="image/*">
                             </td>
                             <td>
-                                <select form="<?php echo $formIdJ; ?>" name="lo_tenemos" class="select-taberna">
-                                    <option value="1" <?php echo (int)$j['lo_tenemos'] === 1 ? 'selected' : ''; ?>>1 - Ya lo tenemos</option>
-                                    <option value="0" <?php echo (int)$j['lo_tenemos'] === 0 ? 'selected' : ''; ?>>0 - No lo tenemos</option>
-                                </select>
-                            </td>
-                            <td>
                                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                     <button type="submit" form="<?php echo $formIdJ; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
-                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar el juego <?php echo h($j['NombreJuego']); ?> y sus votos/victorias?">
+                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar el juego <?php echo h($nomJ); ?> y sus votos/victorias?">
                                         <input type="hidden" name="entidad" value="juego">
                                         <input type="hidden" name="operacion" value="eliminar">
-                                        <input type="hidden" name="NombreJuego" value="<?php echo h($j['NombreJuego']); ?>">
+                                        <input type="hidden" name="NombreJuego" value="<?php echo h($nomJ); ?>">
                                         <button type="submit" class="btn btn-peligro btn-pequeno">Borrar</button>
                                     </form>
                                 </div>

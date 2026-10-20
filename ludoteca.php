@@ -61,15 +61,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
     }
 }
 
+// Procesar al momento el botón de "Yo tengo este juego" / "Ya no lo tengo"
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'toggle_tenencia_propia') {
+    $nombreJuego = isset($_POST['NombreJuego']) ? trim($_POST['NombreJuego']) : '';
+    $juegoSeleccionadoNombre = $nombreJuego;
+
+    $stmtCheckJ = $pdo->prepare("SELECT COUNT(*) FROM Juego WHERE NombreJuego = ? AND lo_tenemos = 1");
+    $stmtCheckJ->execute([$nombreJuego]);
+    if ((int)$stmtCheckJ->fetchColumn() > 0) {
+        $stmtTengo = $pdo->prepare("SELECT COUNT(*) FROM Juego_Propietario WHERE username = ? AND NombreJuego = ?");
+        $stmtTengo->execute([$usuarioActual, $nombreJuego]);
+
+        if ((int)$stmtTengo->fetchColumn() > 0) {
+            $stmtDelProp = $pdo->prepare("DELETE FROM Juego_Propietario WHERE username = ? AND NombreJuego = ?");
+            $stmtDelProp->execute([$usuarioActual, $nombreJuego]);
+            $mensajeExito = "Te has quitado de la lista de propietarios de «{$nombreJuego}».";
+        } else {
+            $stmtAddProp = $pdo->prepare("INSERT INTO Juego_Propietario (username, NombreJuego) VALUES (?, ?)");
+            $stmtAddProp->execute([$usuarioActual, $nombreJuego]);
+            $mensajeExito = "Has indicado que tienes el juego «{$nombreJuego}».";
+        }
+    }
+}
+
 // Comprobar si estamos viendo la ficha detallada de un juego concreto
 $juegoDetalle = null;
+$propietariosJuego = [];
+$yoLoTengo = false;
+
 if ($juegoSeleccionadoNombre !== '') {
-    $stmtDetalle = $pdo->prepare("SELECT NombreJuego, Url FROM Juego WHERE NombreJuego = ? AND lo_tenemos = 1");
+    $stmtDetalle = $pdo->prepare("
+        SELECT NombreJuego, Url, min_jugadores, max_jugadores, descripcion, reglas
+        FROM Juego
+        WHERE NombreJuego = ? AND lo_tenemos = 1
+    ");
     $stmtDetalle->execute([$juegoSeleccionadoNombre]);
     $juegoDetalle = $stmtDetalle->fetch();
 
     if (!$juegoDetalle) {
         $mensajeError = 'El juego solicitado no se encuentra en la Ludoteca.';
+    } else {
+        $stmtProps = $pdo->prepare("
+            SELECT jp.username, p.NombrePersona
+            FROM Juego_Propietario jp
+            INNER JOIN Persona p ON jp.username = p.username
+            WHERE jp.NombreJuego = ?
+            ORDER BY p.NombrePersona ASC
+        ");
+        $stmtProps->execute([$juegoDetalle['NombreJuego']]);
+        $propietariosJuego = $stmtProps->fetchAll();
+
+        foreach ($propietariosJuego as $prop) {
+            if ($prop['username'] === $usuarioActual) {
+                $yoLoTengo = true;
+                break;
+            }
+        }
     }
 }
 
@@ -219,11 +266,65 @@ if ($juegoDetalle) {
                     </div>
 
                     <button type="submit" class="btn btn-primario">
-                        Guardar mi Valoración
-                    </button>
+                    Guardar mi Valoración
+                </button>
+            </form>
+        </div>
+
+        <!-- Información técnica del juego y quiénes lo tienen -->
+        <div class="pergamino-secundario" style="margin-top: 18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid #4a3219; padding-bottom:10px; margin-bottom:12px;">
+                <div>
+                    <span class="etiqueta etiqueta-bronce" style="font-size:0.95rem;">
+                        Jugadores: <?php echo (int)$juegoDetalle['min_jugadores']; ?> a <?php echo (int)$juegoDetalle['max_jugadores']; ?>
+                    </span>
+                </div>
+
+                <form method="POST" action="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>" style="margin:0;">
+                    <input type="hidden" name="accion" value="toggle_tenencia_propia">
+                    <input type="hidden" name="NombreJuego" value="<?php echo h($nombreJ); ?>">
+                    <?php if ($yoLoTengo): ?>
+                        <button type="submit" class="btn btn-peligro btn-pequeno">
+                            Quitarme de propietarios (Ya no lo tengo)
+                        </button>
+                    <?php else: ?>
+                        <button type="submit" class="btn btn-exito btn-pequeno">
+                            + Yo tengo este juego
+                        </button>
+                    <?php endif; ?>
                 </form>
             </div>
-        </section>
+
+            <div style="margin-bottom: 12px;">
+                <strong>Parroquianos que tienen «<?php echo h($nombreJ); ?>»:</strong>
+                <?php if (count($propietariosJuego) === 0): ?>
+                    <em style="color:#5a4634;">Nadie se ha anotado todavía como propietario de este ejemplar.</em>
+                <?php else: ?>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+                        <?php foreach ($propietariosJuego as $prop): ?>
+                            <span class="etiqueta etiqueta-disponible">
+                                <?php echo h($prop['NombrePersona']); ?> (<?php echo h($prop['username']); ?>)
+                            </span>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!empty($juegoDetalle['descripcion'])): ?>
+                <div style="margin-bottom: 12px;">
+                    <strong>Descripción:</strong>
+                    <div class="texto-largo-juego"><?php echo nl2br(h($juegoDetalle['descripcion'])); ?></div>
+                </div>
+            <?php endif; ?>
+
+            <?php if (!empty($juegoDetalle['reglas'])): ?>
+                <div>
+                    <strong>Reglas / Notas de partida:</strong>
+                    <div class="texto-largo-juego"><?php echo nl2br(h($juegoDetalle['reglas'])); ?></div>
+                </div>
+            <?php endif; ?>
+        </div>
+    </section>
 
         <section class="pergamino">
             <h3 class="seccion-titulo">Reseñas de la Taberna para «<?php echo h($nombreJ); ?>» (<?php echo count($listaResenyas); ?>)</h3>

@@ -232,4 +232,40 @@ document.addEventListener('DOMContentLoaded', function () {
             selectOrdenLudoteca.addEventListener('change', actualizarVistaLudoteca);
         }
     }
+
+    // 8. Mostrar / ocultar selector de propietarios en alta_juego.php según "Ya lo tenemos"
+    var radiosPropietarios = document.querySelectorAll('input[type="radio"][data-toggle-propietarios]');
+    radiosPropietarios.forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            var idBloque = radio.getAttribute('data-toggle-propietarios');
+            var bloque = document.getElementById(idBloque);
+            if (!bloque) return;
+
+            if (radio.value === '1' && radio.checked) {
+                bloque.style.display = 'block';
+            } else {
+                bloque.style.display = 'none';
+            }
+        });
+    });
+
+    // 9. Buscador interno para componentes multiselección de propietarios ([data-multiselect])
+    var contenedoresMultiselect = document.querySelectorAll('[data-multiselect]');
+    contenedoresMultiselect.forEach(function (contenedor) {
+        var inputSearch = contenedor.querySelector('[data-multiselect-search]');
+        var opciones = contenedor.querySelectorAll('[data-multiselect-item]');
+        if (!inputSearch) return;
+
+        inputSearch.addEventListener('input', function () {
+            var termino = inputSearch.value.toLowerCase().trim();
+            opciones.forEach(function (opcion) {
+                var nombre = (opcion.getAttribute('data-nombre') || opcion.textContent || '').toLowerCase();
+                if (termino === '' || nombre.indexOf(termino) !== -1) {
+                    opcion.style.display = '';
+                } else {
+                    opcion.style.display = 'none';
+                }
+            });
+        });
+    });
 });

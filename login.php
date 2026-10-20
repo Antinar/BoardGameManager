@@ -40,23 +40,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pestanaActiva = 'registro';
         $username = isset($_POST['username']) ? trim($_POST['username']) : '';
         $nombrePersona = isset($_POST['NombrePersona']) ? trim($_POST['NombrePersona']) : '';
+        $email = isset($_POST['email']) ? trim($_POST['email']) : '';
         $contrasenya = isset($_POST['contrasenya']) ? (string)trim($_POST['contrasenya']) : '';
 
         if ($username === '' || $nombrePersona === '' || $contrasenya === '') {
-            $mensajeError = 'Todos los campos son obligatorios para inscribirse en el libro de la taberna.';
-        } elseif (mb_strlen($username) > 50 || mb_strlen($nombrePersona) > 120) {
-            $mensajeError = 'El usuario o el nombre superan la longitud máxima permitida.';
+            $mensajeError = 'El usuario, nombre y contraseña son obligatorios para inscribirse en el libro de la taberna.';
+        } elseif (mb_strlen($username) > 50 || mb_strlen($nombrePersona) > 120 || mb_strlen($email) > 150) {
+            $mensajeError = 'Alguno de los campos supera la longitud máxima permitida.';
+        } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $mensajeError = 'El formato del correo electrónico introducido no es válido.';
         } else {
             $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM Persona WHERE username = ?");
             $stmtCheck->execute([$username]);
+
             if ((int)$stmtCheck->fetchColumn() > 0) {
                 $mensajeError = 'Ese nombre de usuario ya pertenece a otro parroquiano. Elige otro.';
             } else {
-                $stmtIns = $pdo->prepare("INSERT INTO Persona (username, NombrePersona, contrasenya, rol, inscrito_leaderboard) VALUES (?, ?, ?, 'jugador', 1)");
-                $stmtIns->execute([$username, $nombrePersona, $contrasenya]);
+                $emailGuardar = ($email !== '') ? $email : null;
+                $stmtIns = $pdo->prepare("INSERT INTO Persona (username, NombrePersona, email, contrasenya, rol, inscrito_leaderboard) VALUES (?, ?, ?, ?, 'jugador', 1)");
+                $stmtIns->execute([$username, $nombrePersona, $emailGuardar, $contrasenya]);
 
                 $_SESSION['username']             = $username;
                 $_SESSION['NombrePersona']        = $nombrePersona;
+                $_SESSION['email']                = $emailGuardar;
                 $_SESSION['rol']                  = 'jugador';
                 $_SESSION['inscrito_leaderboard'] = 1;
 
@@ -132,6 +138,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label for="reg_nombre">Nombre y Apellidos (NombrePersona):</label>
                     <input type="text" id="reg_nombre" name="NombrePersona" class="input-taberna" required maxlength="120">
                 </div>
+
+                <div class="grupo-form">
+                    <label for="reg_email">Correo Electrónico (opcional, para avisos de votaciones):</label>
+                    <input type="email" id="reg_email" name="email" class="input-taberna" maxlength="150" placeholder="ejemplo@correo.com">
+                </div>
+
                 <div class="grupo-form">
                     <label for="reg_contrasenya">Contraseña (sin restricciones):</label>
                     <input type="text" id="reg_contrasenya" name="contrasenya" class="input-taberna" required>

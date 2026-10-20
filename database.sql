@@ -10,6 +10,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- -------------------------------------------------------------------------
 -- 1. Tabla Persona
 -- -------------------------------------------------------------------------
+DROP TABLE IF EXISTS `Resenya`;
+DROP TABLE IF EXISTS `Juego_Propietario`;
 DROP TABLE IF EXISTS `Voto`;
 DROP TABLE IF EXISTS `Votacion`;
 DROP TABLE IF EXISTS `Victoria`;
@@ -20,6 +22,7 @@ DROP TABLE IF EXISTS `Persona`;
 CREATE TABLE `Persona` (
   `username` VARCHAR(50) NOT NULL,
   `NombrePersona` VARCHAR(120) NOT NULL,
+  `email` VARCHAR(150) DEFAULT NULL,
   `contrasenya` VARCHAR(255) NOT NULL,
   `rol` ENUM('jugador', 'admin') NOT NULL DEFAULT 'jugador',
   `inscrito_leaderboard` TINYINT(1) NOT NULL DEFAULT 1,
@@ -33,7 +36,26 @@ CREATE TABLE `Juego` (
   `NombreJuego` VARCHAR(120) NOT NULL,
   `Url` VARCHAR(255) NOT NULL,
   `lo_tenemos` TINYINT(1) NOT NULL DEFAULT 0,
+  `min_jugadores` INT NOT NULL DEFAULT 1,
+  `max_jugadores` INT NOT NULL DEFAULT 4,
+  `descripcion` TEXT DEFAULT NULL,
+  `reglas` TEXT DEFAULT NULL,
   PRIMARY KEY (`NombreJuego`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 2.B. Tabla Juego_Propietario (Personas que tienen el juego en la taberna)
+-- -------------------------------------------------------------------------
+CREATE TABLE `Juego_Propietario` (
+  `username` VARCHAR(50) NOT NULL,
+  `NombreJuego` VARCHAR(120) NOT NULL,
+  PRIMARY KEY (`username`, `NombreJuego`),
+  CONSTRAINT `fk_prop_persona`
+    FOREIGN KEY (`username`) REFERENCES `Persona` (`username`)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT `fk_prop_juego`
+    FOREIGN KEY (`NombreJuego`) REFERENCES `Juego` (`NombreJuego`)
+    ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------------------

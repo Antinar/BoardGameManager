@@ -53,6 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtLimpiar->execute([$nombreJuego]);
                 $mensajeExito = "«{$nombreJuego}» marcado como 'Ya lo tenemos'.";
             } else {
+                $stmtCleanProp = $pdo->prepare("DELETE FROM Juego_Propietario WHERE NombreJuego = ?");
+                $stmtCleanProp->execute([$nombreJuego]);
                 $mensajeExito = "«{$nombreJuego}» marcado como 'No lo tenemos'.";
             }
         }
