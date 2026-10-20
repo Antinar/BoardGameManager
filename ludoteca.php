@@ -140,7 +140,15 @@ if ($juegoDetalle) {
     $stmtJuegos = $pdo->query("SELECT NombreJuego, Url FROM Juego WHERE lo_tenemos = 1 ORDER BY NombreJuego ASC");
     $juegosLudoteca = $stmtJuegos->fetchAll();
 
-   // Obtener todas las reseñas de los juegos de la ludoteca para calcular medias (ignorando NULL) y el estado del usuario actual
+    // Obtener los juegos de los que el usuario actual es propietario
+    $stmtMisProp = $pdo->prepare("SELECT NombreJuego FROM Juego_Propietario WHERE username = ?");
+    $stmtMisProp->execute([$usuarioActual]);
+    $misJuegosPropios = [];
+    foreach ($stmtMisProp->fetchAll() as $filaP) {
+        $misJuegosPropios[$filaP['NombreJuego']] = true;
+    }
+
+    // Obtener todas las reseñas de los juegos de la ludoteca para calcular medias (ignorando NULL) y el estado del usuario actual
     $stmtTodasRes = $pdo->query("
         SELECT r.username, r.NombreJuego, r.ha_jugado, r.calificacion, r.comentario
         FROM Resenya r
@@ -221,108 +229,113 @@ if ($juegoDetalle) {
                     <img src="<?php echo h($juegoDetalle['Url']); ?>" alt="<?php echo h($nombreJ); ?>">
                 </div>
 
-                <form method="POST" action="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>" class="pergamino-secundario form-ludoteca">
-                    <h3 class="seccion-subtitulo">Tu Valoración Personal</h3>
-                    <input type="hidden" name="accion" value="guardar_resenya">
-                    <input type="hidden" name="NombreJuego" value="<?php echo h($nombreJ); ?>">
-
-                    <div class="grupo-form">
-                        <label>¿Lo has jugado?</label>
-                        <div class="radio-grupo">
-                            <label class="radio-item">
-                                <input type="radio" name="ha_jugado" value="1"
-                                       data-toggle-jugado="bloque_opinion_<?php echo $hashJ; ?>"
-                                       <?php echo $heJugado ? 'checked' : ''; ?>>
-                                Sí, he jugado
-                            </label>
-                            <label class="radio-item">
-                                <input type="radio" name="ha_jugado" value="0"
-                                       data-toggle-jugado="bloque_opinion_<?php echo $hashJ; ?>"
-                                       <?php echo !$heJugado ? 'checked' : ''; ?>>
-                                No lo he jugado
-                            </label>
+                <!-- A la derecha de la foto: Jugadores, Propietarios, Descripción y Reglas -->
+                <div class="pergamino-secundario" style="margin-bottom: 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid #4a3219; padding-bottom:10px; margin-bottom:12px;">
+                        <div>
+                            <span class="etiqueta etiqueta-bronce" style="font-size:0.95rem;">
+                                Jugadores: <?php echo (int)$juegoDetalle['min_jugadores']; ?> a <?php echo (int)$juegoDetalle['max_jugadores']; ?>
+                            </span>
                         </div>
+
+                        <form method="POST" action="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>" style="margin:0;">
+                            <input type="hidden" name="accion" value="toggle_tenencia_propia">
+                            <input type="hidden" name="NombreJuego" value="<?php echo h($nombreJ); ?>">
+                            <?php if ($yoLoTengo): ?>
+                                <button type="submit" class="btn btn-peligro btn-pequeno">
+                                    Quitarme de propietarios (Ya no lo tengo)
+                                </button>
+                            <?php else: ?>
+                                <button type="submit" class="btn btn-exito btn-pequeno">
+                                    + Yo tengo este juego
+                                </button>
+                            <?php endif; ?>
+                        </form>
                     </div>
 
-                  <div id="bloque_opinion_<?php echo $hashJ; ?>" class="bloque-opinion-ludoteca" style="<?php echo $heJugado ? '' : 'display:none;'; ?>">
-                        <div class="grupo-form">
-                            <label for="cal_<?php echo $hashJ; ?>">¿Cuánto te ha gustado? (0 a 10):</label>
-                            <select id="cal_<?php echo $hashJ; ?>" name="calificacion" class="select-taberna" <?php echo $heJugado ? 'required' : 'disabled'; ?>>
-                                <option value="">-- Selecciona del 0 al 10 --</option>
-                                <?php foreach ($escalaCalificaciones as $num => $textoEnum): ?>
-                                    <option value="<?php echo (int)$num; ?>" <?php echo ($miCalificacion !== '' && (int)$miCalificacion === (int)$num) ? 'selected' : ''; ?>>
-                                        <?php echo (int)$num . ' - ' . h($textoEnum); ?>
-                                    </option>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Parroquianos que tienen «<?php echo h($nombreJ); ?>»:</strong>
+                        <?php if (count($propietariosJuego) === 0): ?>
+                            <em style="color:#5a4634;">Nadie se ha anotado todavía como propietario de este ejemplar.</em>
+                        <?php else: ?>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+                                <?php foreach ($propietariosJuego as $prop): ?>
+                                    <span class="etiqueta etiqueta-disponible">
+                                        <?php echo h($prop['NombrePersona']); ?> (<?php echo h($prop['username']); ?>)
+                                    </span>
                                 <?php endforeach; ?>
-                            </select>
-                        </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
+                    <div style="margin-bottom: 12px;">
+                        <strong>Descripción:</strong>
+                        <?php if (!empty($juegoDetalle['descripcion'])): ?>
+                            <div class="texto-largo-juego"><?php echo nl2br(h($juegoDetalle['descripcion'])); ?></div>
+                        <?php else: ?>
+                            <p style="font-style:italic; color:#5a4634; margin-top:4px;">Sin descripción registrada.</p>
+                        <?php endif; ?>
+                    </div>
+
+                    <div>
+                        <strong>Reglas / Notas de partida:</strong>
+                        <?php if (!empty($juegoDetalle['reglas'])): ?>
+                            <div class="texto-largo-juego"><?php echo nl2br(h($juegoDetalle['reglas'])); ?></div>
+                        <?php else: ?>
+                            <p style="font-style:italic; color:#5a4634; margin-top:4px;">Sin reglas especificadas.</p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Justo debajo: Formulario de Valoración Personal -->
+            <form method="POST" action="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>" class="pergamino-secundario form-ludoteca" style="margin-top: 18px;">
+                <h3 class="seccion-subtitulo">Tu Valoración Personal</h3>
+                <input type="hidden" name="accion" value="guardar_resenya">
+                <input type="hidden" name="NombreJuego" value="<?php echo h($nombreJ); ?>">
+
+                <div class="grupo-form">
+                    <label>¿Lo has jugado?</label>
+                    <div class="radio-grupo">
+                        <label class="radio-item">
+                            <input type="radio" name="ha_jugado" value="1"
+                                   data-toggle-jugado="bloque_opinion_<?php echo $hashJ; ?>"
+                                   <?php echo $heJugado ? 'checked' : ''; ?>>
+                            Sí, he jugado
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="ha_jugado" value="0"
+                                   data-toggle-jugado="bloque_opinion_<?php echo $hashJ; ?>"
+                                   <?php echo !$heJugado ? 'checked' : ''; ?>>
+                            No lo he jugado
+                        </label>
+                    </div>
+                </div>
+
+                <div id="bloque_opinion_<?php echo $hashJ; ?>" class="bloque-opinion-ludoteca" style="<?php echo $heJugado ? '' : 'display:none;'; ?>">
                     <div class="grupo-form">
-                        <label for="com_<?php echo $hashJ; ?>">Tu opinión o comentario previo (opcional):</label>
-                        <textarea id="com_<?php echo $hashJ; ?>" name="comentario" class="input-taberna" rows="3" placeholder="Escribe qué te pareció el juego o tu opinión previa si aún no lo has jugado..."><?php echo h($miComentario); ?></textarea>
+                        <label for="cal_<?php echo $hashJ; ?>">¿Cuánto te ha gustado? (0 a 10):</label>
+                        <select id="cal_<?php echo $hashJ; ?>" name="calificacion" class="select-taberna" <?php echo $heJugado ? 'required' : 'disabled'; ?>>
+                            <option value="">-- Selecciona del 0 al 10 --</option>
+                            <?php foreach ($escalaCalificaciones as $num => $textoEscala): ?>
+                                <option value="<?php echo (int)$num; ?>" <?php echo ($miCalificacion !== '' && (int)$miCalificacion === (int)$num) ? 'selected' : ''; ?>>
+                                    <?php echo (int)$num . ' - ' . h($textoEscala); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
+                </div>
 
-                    <button type="submit" class="btn btn-primario">
+                <div class="grupo-form">
+                    <label for="com_<?php echo $hashJ; ?>">Tu opinión o comentario previo (opcional):</label>
+                    <textarea id="com_<?php echo $hashJ; ?>" name="comentario" class="input-taberna" rows="3" placeholder="Escribe qué te pareció el juego o tu opinión previa si aún no lo has jugado..."><?php echo h($miComentario); ?></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primario">
                     Guardar mi Valoración
                 </button>
             </form>
-        </div>
-
-        <!-- Información técnica del juego y quiénes lo tienen -->
-        <div class="pergamino-secundario" style="margin-top: 18px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid #4a3219; padding-bottom:10px; margin-bottom:12px;">
-                <div>
-                    <span class="etiqueta etiqueta-bronce" style="font-size:0.95rem;">
-                        Jugadores: <?php echo (int)$juegoDetalle['min_jugadores']; ?> a <?php echo (int)$juegoDetalle['max_jugadores']; ?>
-                    </span>
-                </div>
-
-                <form method="POST" action="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>" style="margin:0;">
-                    <input type="hidden" name="accion" value="toggle_tenencia_propia">
-                    <input type="hidden" name="NombreJuego" value="<?php echo h($nombreJ); ?>">
-                    <?php if ($yoLoTengo): ?>
-                        <button type="submit" class="btn btn-peligro btn-pequeno">
-                            Quitarme de propietarios (Ya no lo tengo)
-                        </button>
-                    <?php else: ?>
-                        <button type="submit" class="btn btn-exito btn-pequeno">
-                            + Yo tengo este juego
-                        </button>
-                    <?php endif; ?>
-                </form>
-            </div>
-
-            <div style="margin-bottom: 12px;">
-                <strong>Parroquianos que tienen «<?php echo h($nombreJ); ?>»:</strong>
-                <?php if (count($propietariosJuego) === 0): ?>
-                    <em style="color:#5a4634;">Nadie se ha anotado todavía como propietario de este ejemplar.</em>
-                <?php else: ?>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
-                        <?php foreach ($propietariosJuego as $prop): ?>
-                            <span class="etiqueta etiqueta-disponible">
-                                <?php echo h($prop['NombrePersona']); ?> (<?php echo h($prop['username']); ?>)
-                            </span>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <?php if (!empty($juegoDetalle['descripcion'])): ?>
-                <div style="margin-bottom: 12px;">
-                    <strong>Descripción:</strong>
-                    <div class="texto-largo-juego"><?php echo nl2br(h($juegoDetalle['descripcion'])); ?></div>
-                </div>
-            <?php endif; ?>
-
-            <?php if (!empty($juegoDetalle['reglas'])): ?>
-                <div>
-                    <strong>Reglas / Notas de partida:</strong>
-                    <div class="texto-largo-juego"><?php echo nl2br(h($juegoDetalle['reglas'])); ?></div>
-                </div>
-            <?php endif; ?>
-        </div>
-    </section>
+        </section>
 
         <section class="pergamino">
             <h3 class="seccion-titulo">Reseñas de la Taberna para «<?php echo h($nombreJ); ?>» (<?php echo count($listaResenyas); ?>)</h3>
@@ -393,8 +406,14 @@ if ($juegoDetalle) {
                 </h2>
 
                 <div class="controles-ludoteca">
+                    <select id="filtro-propiedad-ludoteca" class="select-taberna">
+                        <option value="todos">Propiedad: Todos</option>
+                        <option value="mios">En mi colección (Míos)</option>
+                        <option value="no_mios">Que yo NO tengo</option>
+                    </select>
+
                     <select id="filtro-estado-ludoteca" class="select-taberna">
-                        <option value="todos">Todos los juegos</option>
+                        <option value="todos">Estado: Todos</option>
                         <option value="jugado">Jugados por mí</option>
                         <option value="no_jugado">No jugados por mí</option>
                         <option value="no_resenyado">No reseñados por mí</option>
@@ -402,7 +421,8 @@ if ($juegoDetalle) {
 
                     <select id="orden-ludoteca" class="select-taberna">
                         <option value="alfabetico">Orden: Alfabético (A - Z)</option>
-                        <option value="preferencias">Orden: Preferencias (Nota media)</option>
+                        <option value="preferencias">Orden: Nota media global</option>
+                        <option value="mi_nota">Orden: Mi nota personal</option>
                     </select>
 
                     <?php renderizarBuscador('Buscar juego por nombre...', ['id' => 'buscador-ludoteca']); ?>
@@ -465,12 +485,18 @@ if ($juegoDetalle) {
                                 $claseMiEstado = 'estado-no-jugado';
                             }
                         }
+                        $esMio = isset($misJuegosPropios[$nombreJ]) ? '1' : '0';
+                        $valorMiNota = (isset($miResenyaPorJuego[$nombreJ]) && $miResenyaPorJuego[$nombreJ]['ha_jugado'] === 1 && $miResenyaPorJuego[$nombreJ]['nota_num'] !== null)
+                            ? (int)$miResenyaPorJuego[$nombreJ]['nota_num']
+                            : -1;
                         ?>
                         <a href="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>"
                            class="tarjeta-ludoteca"
                            data-nombre="<?php echo h($nombreJ); ?>"
                            data-mi-estado="<?php echo h($miEstadoFiltro); ?>"
-                           data-nota-media="<?php echo h($valorOrdenMedia); ?>">
+                           data-es-mio="<?php echo h($esMio); ?>"
+                           data-nota-media="<?php echo h($valorOrdenMedia); ?>"
+                           data-mi-nota="<?php echo h($valorMiNota); ?>">
 
                             <h3 class="tarjeta-ludoteca-titulo"><?php echo h($nombreJ); ?></h3>
 

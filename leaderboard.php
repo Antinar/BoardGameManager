@@ -231,7 +231,6 @@ if ($filtroJuego !== '') {
             <table class="tabla-taberna">
                 <thead>
                     <tr>
-                        <th style="width:90px;">Registro</th>
                         <th>Ganador</th>
                         <th>Juego de Mesa</th>
                         <th style="width:210px;">Fecha y Hora</th>
@@ -240,14 +239,13 @@ if ($filtroJuego !== '') {
                 <tbody>
                     <?php if (count($ultimasVictorias) === 0): ?>
                         <tr>
-                            <td colspan="4" style="text-align:center; font-style:italic;">
+                            <td colspan="3" style="text-align:center; font-style:italic;">
                                 No hay victorias registradas para el filtro seleccionado.
                             </td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($ultimasVictorias as $uv): ?>
                             <tr>
-                                <td>#<?php echo (int)$uv['id_victoria']; ?></td>
                                 <td>
                                     <strong><?php echo h($uv['NombrePersona']); ?></strong>
                                     (<?php echo h($uv['username']); ?>)

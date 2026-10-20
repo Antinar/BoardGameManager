@@ -94,7 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                $mensajeExito = "Juego «{$originalNombre}» actualizado.";
+                $_GET['editar_juego'] = $nuevoNombre;
+                $mensajeExito = "Juego «{$nuevoNombre}» actualizado correctamente.";
             } elseif ($operacion === 'eliminar') {
                 $nombreDel = $_POST['NombreJuego'];
                 $stmtUrl = $pdo->prepare("SELECT Url FROM Juego WHERE NombreJuego = ?");
@@ -268,6 +269,21 @@ $votaciones = $pdo->query("SELECT * FROM Votacion ORDER BY id_votacion DESC")->f
 $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
 $resenyas = $pdo->query("SELECT * FROM Resenya ORDER BY fecha_resenya DESC, id_resenya DESC")->fetchAll();
 $escalaAdminResenyas = obtenerEscalaCalificaciones();
+
+// Comprobar si estamos en la vista dedicada de edición de un juego concreto
+$juegoEditarNombre = isset($_GET['editar_juego']) ? trim($_GET['editar_juego']) : '';
+$juegoEditarDetalle = null;
+if ($juegoEditarNombre !== '') {
+    foreach ($juegos as $jItem) {
+        if ($jItem['NombreJuego'] === $juegoEditarNombre) {
+            $juegoEditarDetalle = $jItem;
+            break;
+        }
+    }
+    if (!$juegoEditarDetalle && $mensajeError === '') {
+        $mensajeError = 'El juego solicitado para editar no existe.';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -291,10 +307,105 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
         <div class="alerta alerta-exito"><?php echo h($mensajeExito); ?></div>
     <?php endif; ?>
 
+    <?php if ($juegoEditarDetalle): ?>
+        <!-- =================================================================
+             VISTA DEDICADA DE EDICIÓN DE JUEGO EN ADMIN (ESTILO DETALLE LUDOTECA)
+             ================================================================= -->
+        <?php
+        $nomJEdit = $juegoEditarDetalle['NombreJuego'];
+        $loTenEdit = ((int)$juegoEditarDetalle['lo_tenemos'] === 1);
+        ?>
+        <section class="pergamino">
+            <div class="barra-titulo-filtro" style="border-bottom: 2px solid #4a3219; padding-bottom: 10px; margin-bottom: 18px;">
+                <h2 class="seccion-titulo" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
+                    Editar Juego: «<?php echo h($nomJEdit); ?>»
+                </h2>
+                <a href="admin.php" class="btn btn-bronce btn-pequeno">&larr; Volver al Panel de Administración</a>
+            </div>
+
+            <div class="ludoteca-detalle-superior">
+                <div class="ludoteca-detalle-imagen">
+                    <img src="<?php echo h($juegoEditarDetalle['Url']); ?>" alt="<?php echo h($nomJEdit); ?>">
+                </div>
+
+                <form method="POST" action="admin.php?editar_juego=<?php echo urlencode($nomJEdit); ?>" enctype="multipart/form-data" class="pergamino-secundario form-ludoteca">
+                    <input type="hidden" name="entidad" value="juego">
+                    <input type="hidden" name="operacion" value="editar">
+                    <input type="hidden" name="original_NombreJuego" value="<?php echo h($nomJEdit); ?>">
+
+                    <div class="grid-dos-columnas" style="gap:14px;">
+                        <div class="grupo-form">
+                            <label>Nombre del Juego:</label>
+                            <input type="text" name="NombreJuego" value="<?php echo h($nomJEdit); ?>" class="input-taberna" required maxlength="120">
+                        </div>
+
+                        <div class="grupo-form">
+                            <label>¿Lo tenemos en la Taberna?:</label>
+                            <select name="lo_tenemos" class="select-taberna">
+                                <option value="0" <?php echo !$loTenEdit ? 'selected' : ''; ?>>No lo tenemos (En Juegos Deseados)</option>
+                                <option value="1" <?php echo $loTenEdit ? 'selected' : ''; ?>>Ya lo tenemos (En Ludoteca)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid-dos-columnas" style="gap:14px;">
+                        <div class="grupo-form">
+                            <label>Mínimo de Jugadores:</label>
+                            <input type="number" name="min_jugadores" value="<?php echo (int)$juegoEditarDetalle['min_jugadores']; ?>" class="input-taberna" required min="1" max="99">
+                        </div>
+                        <div class="grupo-form">
+                            <label>Máximo de Jugadores:</label>
+                            <input type="number" name="max_jugadores" value="<?php echo (int)$juegoEditarDetalle['max_jugadores']; ?>" class="input-taberna" required min="1" max="99">
+                        </div>
+                    </div>
+
+                    <div class="grupo-form">
+                        <label>Ruta actual de la imagen (Url):</label>
+                        <input type="text" name="Url" value="<?php echo h($juegoEditarDetalle['Url']); ?>" class="input-taberna" required style="margin-bottom:8px;">
+                        <label>O subir una imagen nueva (Máx 5 MB):</label>
+                        <input type="file" name="nueva_imagen" class="input-taberna" accept="image/*">
+                    </div>
+
+                    <div class="grupo-form">
+                        <label>Propietarios del juego (si ya lo tenemos):</label>
+                        <div class="multiselect-taberna" data-multiselect>
+                            <input type="text" class="input-taberna" placeholder="Buscar propietario..." data-multiselect-search style="margin-bottom:6px;">
+                            <div class="multiselect-lista">
+                                <?php foreach ($personas as $per): ?>
+                                    <?php $esProp = isset($propietariosPorJuego[$nomJEdit][$per['username']]); ?>
+                                    <label class="multiselect-opcion" data-multiselect-item data-nombre="<?php echo h($per['NombrePersona'] . ' ' . $per['username']); ?>">
+                                        <input type="checkbox" name="propietarios[]" value="<?php echo h($per['username']); ?>" <?php echo $esProp ? 'checked' : ''; ?>>
+                                        <strong><?php echo h($per['NombrePersona']); ?></strong> (<?php echo h($per['username']); ?>)
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grupo-form">
+                        <label>Descripción:</label>
+                        <textarea name="descripcion" class="input-taberna" rows="3" placeholder="Descripción del juego..."><?php echo h((string)$juegoEditarDetalle['descripcion']); ?></textarea>
+                    </div>
+
+                    <div class="grupo-form">
+                        <label>Reglas / Notas de partida:</label>
+                        <textarea name="reglas" class="input-taberna" rows="4" placeholder="Reglas o resumen de partida..."><?php echo h((string)$juegoEditarDetalle['reglas']); ?></textarea>
+                    </div>
+
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button type="submit" class="btn btn-exito">Guardar Cambios del Juego</button>
+                        <a href="admin.php" class="btn btn-bronce">Volver al Panel Admin</a>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+    <?php else: ?>
+
     <section class="pergamino">
         <h2 class="seccion-titulo">Panel de Administración</h2>
         <p>
-            Desde este panel puedes inspeccionar, modificar o eliminar cualquier registro de las 6 tablas del sistema.
+            Desde este panel puedes inspeccionar, modificar o eliminar cualquier registro de las tablas del sistema.
         </p>
     </section>
 
@@ -305,7 +416,7 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
             <table class="tabla-taberna">
                 <thead>
                     <tr>
-                        <th>Username (PK)</th>
+                        <th>Username</th>
                         <th>Nombre y Apellidos</th>
                         <th>Email</th>
                         <th>Contraseña</th>
@@ -358,27 +469,22 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
         </div>
     </section>
 
-    <!-- 2. GESTIÓN DE JUEGOS -->
+    <!-- 2. GESTIÓN DE JUEGOS (SOLO MINIATURA, NOMBRE Y ACCIONES) -->
     <section class="pergamino">
         <h3 class="seccion-titulo">2. Juegos Registrados (<?php echo count($juegos); ?>)</h3>
         <div class="tabla-contenedor">
             <table class="tabla-taberna">
                 <thead>
                     <tr>
-                        <th style="width:95px;">Miniatura</th>
-                        <th style="min-width:170px;">Nombre y Estado</th>
-                        <th style="min-width:130px;">Jugadores (Mín/Máx)</th>
-                        <th style="min-width:220px;">Descripción y Reglas</th>
-                        <th style="min-width:220px;">Propietarios (Si lo tenemos)</th>
-                        <th style="min-width:190px;">Imagen (Url)</th>
-                        <th style="width:170px;">Acciones</th>
+                        <th style="width:110px;">Miniatura</th>
+                        <th>Nombre del Juego</th>
+                        <th style="width:210px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($juegos as $j): ?>
                         <?php
                         $nomJ = $j['NombreJuego'];
-                        $formIdJ = 'form_j_' . md5($nomJ);
                         $loTen = ((int)$j['lo_tenemos'] === 1);
                         ?>
                         <tr>
@@ -386,49 +492,18 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
                                 <img src="<?php echo h($j['Url']); ?>" alt="<?php echo h($nomJ); ?>" class="img-juego-tabla">
                             </td>
                             <td>
-                                <form id="<?php echo $formIdJ; ?>" method="POST" action="admin.php" enctype="multipart/form-data">
-                                    <input type="hidden" name="entidad" value="juego">
-                                    <input type="hidden" name="operacion" value="editar">
-                                    <input type="hidden" name="original_NombreJuego" value="<?php echo h($nomJ); ?>">
-                                </form>
-                                <input type="text" form="<?php echo $formIdJ; ?>" name="NombreJuego" value="<?php echo h($nomJ); ?>" class="input-taberna" required maxlength="120" style="margin-bottom:6px;">
-                                <select form="<?php echo $formIdJ; ?>" name="lo_tenemos" class="select-taberna">
-                                    <option value="0" <?php echo !$loTen ? 'selected' : ''; ?>>0 - No lo tenemos</option>
-                                    <option value="1" <?php echo $loTen ? 'selected' : ''; ?>>1 - Ya lo tenemos</option>
-                                </select>
-                            </td>
-                            <td>
-                                <div style="display:flex; gap:6px; align-items:center;">
-                                    <input type="number" form="<?php echo $formIdJ; ?>" name="min_jugadores" value="<?php echo (int)$j['min_jugadores']; ?>" class="input-taberna" required min="1" max="99" title="Mínimo">
-                                    <span>a</span>
-                                    <input type="number" form="<?php echo $formIdJ; ?>" name="max_jugadores" value="<?php echo (int)$j['max_jugadores']; ?>" class="input-taberna" required min="1" max="99" title="Máximo">
+                                <strong style="font-size:1.08rem;"><?php echo h($nomJ); ?></strong>
+                                <div style="margin-top:4px;">
+                                    <?php if ($loTen): ?>
+                                        <span class="etiqueta etiqueta-disponible">Ya lo tenemos</span>
+                                    <?php else: ?>
+                                        <span class="etiqueta etiqueta-pendiente">No lo tenemos</span>
+                                    <?php endif; ?>
                                 </div>
-                            </td>
-                            <td>
-                                <textarea form="<?php echo $formIdJ; ?>" name="descripcion" class="input-taberna" rows="2" placeholder="Descripción..." style="margin-bottom:6px;"><?php echo h((string)$j['descripcion']); ?></textarea>
-                                <textarea form="<?php echo $formIdJ; ?>" name="reglas" class="input-taberna" rows="2" placeholder="Reglas..."><?php echo h((string)$j['reglas']); ?></textarea>
-                            </td>
-                            <td>
-                                <div class="multiselect-taberna" data-multiselect>
-                                    <input type="text" class="input-taberna" placeholder="Buscar propietario..." data-multiselect-search style="margin-bottom:4px; padding:4px 6px; font-size:0.85rem;">
-                                    <div class="multiselect-lista" style="max-height:95px;">
-                                        <?php foreach ($personas as $per): ?>
-                                            <?php $esProp = isset($propietariosPorJuego[$nomJ][$per['username']]); ?>
-                                            <label class="multiselect-opcion" data-multiselect-item data-nombre="<?php echo h($per['NombrePersona'] . ' ' . $per['username']); ?>">
-                                                <input type="checkbox" form="<?php echo $formIdJ; ?>" name="propietarios[]" value="<?php echo h($per['username']); ?>" <?php echo $esProp ? 'checked' : ''; ?>>
-                                                <?php echo h($per['NombrePersona']); ?> (<?php echo h($per['username']); ?>)
-                                            </label>
-                                        <?php endforeach; ?>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <input type="text" form="<?php echo $formIdJ; ?>" name="Url" value="<?php echo h($j['Url']); ?>" class="input-taberna" required style="margin-bottom:6px;">
-                                <input type="file" form="<?php echo $formIdJ; ?>" name="nueva_imagen" class="input-taberna" accept="image/*">
                             </td>
                             <td>
                                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                                    <button type="submit" form="<?php echo $formIdJ; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
+                                    <a href="admin.php?editar_juego=<?php echo urlencode($nomJ); ?>" class="btn btn-bronce btn-pequeno">Editar</a>
                                     <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar el juego <?php echo h($nomJ); ?> y sus votos/victorias?">
                                         <input type="hidden" name="entidad" value="juego">
                                         <input type="hidden" name="operacion" value="eliminar">
@@ -447,7 +522,6 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
     <!-- 3. GESTIÓN DE PERSONA_JUEGO (INTERESADOS) -->
     <section class="pergamino">
         <h3 class="seccion-titulo">3. Interesados en Juegos (<?php echo count($relacionesPJ); ?>)</h3>
-
         <form method="POST" action="admin.php" class="pergamino-secundario" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
             <input type="hidden" name="entidad" value="persona_juego">
             <input type="hidden" name="operacion" value="crear">
@@ -526,14 +600,13 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
         </div>
     </section>
 
-    <!-- 4. GESTIÓN DE VICTORIAS -->
+    <!-- 4. GESTIÓN DE VICTORIAS (SIN COLUMNA ID) -->
     <section class="pergamino">
         <h3 class="seccion-titulo">4. Partidas Ganadas (<?php echo count($victorias); ?>)</h3>
         <div class="tabla-contenedor">
             <table class="tabla-taberna">
                 <thead>
                     <tr>
-                        <th style="width:70px;">ID</th>
                         <th>Ganador</th>
                         <th>Juego</th>
                         <th>Fecha y Hora</th>
@@ -545,14 +618,11 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
                         <?php $formIdV = 'form_vic_' . (int)$v['id_victoria']; ?>
                         <tr>
                             <td>
-                                #<?php echo (int)$v['id_victoria']; ?>
                                 <form id="<?php echo $formIdV; ?>" method="POST" action="admin.php">
                                     <input type="hidden" name="entidad" value="victoria">
                                     <input type="hidden" name="operacion" value="editar">
                                     <input type="hidden" name="id_victoria" value="<?php echo (int)$v['id_victoria']; ?>">
                                 </form>
-                            </td>
-                            <td>
                                 <select form="<?php echo $formIdV; ?>" name="username" class="select-taberna">
                                     <?php foreach ($personas as $p): ?>
                                         <option value="<?php echo h($p['username']); ?>" <?php echo $p['username'] === $v['username'] ? 'selected' : ''; ?>>
@@ -591,14 +661,13 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
         </div>
     </section>
 
-    <!-- 5. GESTIÓN DE VOTACIONES -->
+    <!-- 5. GESTIÓN DE VOTACIONES (SIN COLUMNA ID) -->
     <section class="pergamino">
         <h3 class="seccion-titulo">5. Tabla Votacion (Todas las Votaciones: <?php echo count($votaciones); ?>)</h3>
         <div class="tabla-contenedor">
             <table class="tabla-taberna">
                 <thead>
                     <tr>
-                        <th style="width:70px;">ID</th>
                         <th>Título</th>
                         <th>Creador</th>
                         <th>Fecha Límite</th>
@@ -611,14 +680,11 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
                         <?php $formIdVot = 'form_vot_' . (int)$vot['id_votacion']; ?>
                         <tr>
                             <td>
-                                #<?php echo (int)$vot['id_votacion']; ?>
                                 <form id="<?php echo $formIdVot; ?>" method="POST" action="admin.php">
                                     <input type="hidden" name="entidad" value="votacion">
                                     <input type="hidden" name="operacion" value="editar">
                                     <input type="hidden" name="id_votacion" value="<?php echo (int)$vot['id_votacion']; ?>">
                                 </form>
-                            </td>
-                            <td>
                                 <input type="text" form="<?php echo $formIdVot; ?>" name="titulo" value="<?php echo h($vot['titulo']); ?>" class="input-taberna" required>
                             </td>
                             <td>
@@ -657,15 +723,14 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
         </div>
     </section>
 
-    <!-- 6. GESTIÓN DE VOTOS INDIVIDUALES -->
+    <!-- 6. GESTIÓN DE VOTOS INDIVIDUALES (SIN COLUMNA ID) -->
     <section class="pergamino">
         <h3 class="seccion-titulo">6. Tabla Voto (Votos Emitidos: <?php echo count($votos); ?>)</h3>
         <div class="tabla-contenedor">
             <table class="tabla-taberna">
                 <thead>
                     <tr>
-                        <th style="width:70px;">ID Voto</th>
-                        <th>Votación (ID)</th>
+                        <th>Votación</th>
                         <th>Usuario</th>
                         <th>Juego Votado</th>
                         <th style="width:210px;">Acciones</th>
@@ -676,18 +741,15 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
                         <?php $formIdVt = 'form_vt_' . (int)$vt['id_voto']; ?>
                         <tr>
                             <td>
-                                #<?php echo (int)$vt['id_voto']; ?>
                                 <form id="<?php echo $formIdVt; ?>" method="POST" action="admin.php">
                                     <input type="hidden" name="entidad" value="voto">
                                     <input type="hidden" name="operacion" value="editar">
                                     <input type="hidden" name="id_voto" value="<?php echo (int)$vt['id_voto']; ?>">
                                 </form>
-                            </td>
-                            <td>
                                 <select form="<?php echo $formIdVt; ?>" name="id_votacion" class="select-taberna">
                                     <?php foreach ($votaciones as $vot): ?>
                                         <option value="<?php echo (int)$vot['id_votacion']; ?>" <?php echo (int)$vot['id_votacion'] === (int)$vt['id_votacion'] ? 'selected' : ''; ?>>
-                                            #<?php echo (int)$vot['id_votacion']; ?> - <?php echo h($vot['titulo']); ?>
+                                            <?php echo h($vot['titulo']); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -728,7 +790,7 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
         </div>
     </section>
 
-    <!-- 7. GESTIÓN DE RESEÑAS (LUDOTECA) -->
+    <!-- 7. GESTIÓN DE RESEÑAS (SIN COLUMNA ID NI COLUMNA FECHA) -->
     <section class="pergamino">
         <h3 class="seccion-titulo">7. Reseñas de la Ludoteca (<?php echo count($resenyas); ?>)</h3>
 
@@ -762,7 +824,7 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
                 </select>
             </div>
 
-   <div>
+            <div>
                 <label>Calificación (0-10):</label>
                 <select name="calificacion" class="select-taberna">
                     <option value="">-- Ninguna (NULL) --</option>
@@ -784,13 +846,11 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
             <table class="tabla-taberna">
                 <thead>
                     <tr>
-                        <th style="width:65px;">ID</th>
                         <th>Usuario</th>
                         <th>Juego</th>
                         <th style="width:110px;">¿Jugado?</th>
-                        <th>Calificación (1-5)</th>
+                        <th>Calificación (0-10)</th>
                         <th>Comentario</th>
-                        <th style="width:160px;">Fecha</th>
                         <th style="width:190px;">Acciones</th>
                     </tr>
                 </thead>
@@ -799,14 +859,11 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
                         <?php $formIdR = 'form_res_' . (int)$r['id_resenya']; ?>
                         <tr>
                             <td>
-                                <strong>#<?php echo (int)$r['id_resenya']; ?></strong>
                                 <form id="<?php echo $formIdR; ?>" method="POST" action="admin.php">
                                     <input type="hidden" name="entidad" value="resenya">
                                     <input type="hidden" name="operacion" value="editar">
                                     <input type="hidden" name="id_resenya" value="<?php echo (int)$r['id_resenya']; ?>">
                                 </form>
-                            </td>
-                            <td>
                                 <select form="<?php echo $formIdR; ?>" name="username" class="select-taberna">
                                     <?php foreach ($personas as $p): ?>
                                         <option value="<?php echo h($p['username']); ?>" <?php echo $p['username'] === $r['username'] ? 'selected' : ''; ?>>
@@ -830,7 +887,7 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
                                     <option value="0" <?php echo (int)$r['ha_jugado'] === 0 ? 'selected' : ''; ?>>No (0)</option>
                                 </select>
                             </td>
-                   <td>
+                            <td>
                                 <select form="<?php echo $formIdR; ?>" name="calificacion" class="select-taberna">
                                     <option value="">-- NULL (Opinión previa) --</option>
                                     <?php foreach ($escalaAdminResenyas as $num => $txtCal): ?>
@@ -843,13 +900,10 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
                             <td>
                                 <input type="text" form="<?php echo $formIdR; ?>" name="comentario" value="<?php echo h((string)$r['comentario']); ?>" class="input-taberna">
                             </td>
-                            <td style="font-size:0.85rem;">
-                                <?php echo h($r['fecha_resenya']); ?>
-                            </td>
                             <td>
                                 <div class="acciones-admin-celda">
                                     <button type="submit" form="<?php echo $formIdR; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
-                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar la reseña #<?php echo (int)$r['id_resenya']; ?>?">
+                                    <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar esta reseña?">
                                         <input type="hidden" name="entidad" value="resenya">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="id_resenya" value="<?php echo (int)$r['id_resenya']; ?>">
@@ -863,7 +917,8 @@ $escalaAdminResenyas = obtenerEscalaCalificaciones();
             </table>
         </div>
     </section>
-    
+
+    <?php endif; ?>
 </main>
 
 <script src="app.js"></script>

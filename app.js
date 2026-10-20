@@ -170,9 +170,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // 7. Buscador, filtro de estado personal y ordenación por preferencias en Ludoteca (ludoteca.php)
+    // 7. Buscador, filtro de propiedad, filtro de estado personal y ordenación en Ludoteca (ludoteca.php)
     var contenedorLudoteca = document.getElementById('contenedor-ludoteca');
     var inputBuscarLudoteca = document.getElementById('buscador-ludoteca');
+    var selectPropiedadLudoteca = document.getElementById('filtro-propiedad-ludoteca');
     var selectFiltroLudoteca = document.getElementById('filtro-estado-ludoteca');
     var selectOrdenLudoteca = document.getElementById('orden-ludoteca');
     var msgSinResultadosLudoteca = document.getElementById('ludoteca-sin-resultados');
@@ -182,6 +183,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function actualizarVistaLudoteca() {
             var texto = inputBuscarLudoteca ? inputBuscarLudoteca.value.toLowerCase().trim() : '';
+            var propiedadFiltro = selectPropiedadLudoteca ? selectPropiedadLudoteca.value : 'todos';
             var estadoFiltro = selectFiltroLudoteca ? selectFiltroLudoteca.value : 'todos';
             var criterioOrden = selectOrdenLudoteca ? selectOrdenLudoteca.value : 'alfabetico';
 
@@ -196,9 +198,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (isNaN(notaA)) notaA = -1;
                     if (isNaN(notaB)) notaB = -1;
 
-                    // De mayor a menor nota media (los de -1 sin nota quedan al final del todo)
                     if (notaB !== notaA) {
                         return notaB - notaA;
+                    }
+                } else if (criterioOrden === 'mi_nota') {
+                    var miNotaA = parseFloat(a.getAttribute('data-mi-nota'));
+                    var miNotaB = parseFloat(b.getAttribute('data-mi-nota'));
+                    if (isNaN(miNotaA)) miNotaA = -1;
+                    if (isNaN(miNotaB)) miNotaB = -1;
+
+                    // De mayor a menor según la nota personal del usuario (-1 sin nota queda al final)
+                    if (miNotaB !== miNotaA) {
+                        return miNotaB - miNotaA;
                     }
                 }
                 // Desempate o criterio alfabético por defecto
@@ -212,11 +223,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 var nombre = (tarjeta.getAttribute('data-nombre') || '').toLowerCase();
                 var miEstado = tarjeta.getAttribute('data-mi-estado') || '';
+                var esMio = tarjeta.getAttribute('data-es-mio') === '1';
 
                 var coincideNombre = (texto === '' || nombre.indexOf(texto) !== -1);
                 var coincideEstado = (estadoFiltro === 'todos' || miEstado === estadoFiltro);
+                var coincidePropiedad = (
+                    propiedadFiltro === 'todos' ||
+                    (propiedadFiltro === 'mios' && esMio) ||
+                    (propiedadFiltro === 'no_mios' && !esMio)
+                );
 
-                if (coincideNombre && coincideEstado) {
+                if (coincideNombre && coincideEstado && coincidePropiedad) {
                     tarjeta.style.display = '';
                     visibles++;
                 } else {
@@ -231,6 +248,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (inputBuscarLudoteca) {
             inputBuscarLudoteca.addEventListener('input', actualizarVistaLudoteca);
+        }
+        if (selectPropiedadLudoteca) {
+            selectPropiedadLudoteca.addEventListener('change', actualizarVistaLudoteca);
         }
         if (selectFiltroLudoteca) {
             selectFiltroLudoteca.addEventListener('change', actualizarVistaLudoteca);
@@ -327,6 +347,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     filtrosCards: filtrosCards,
                     ludoteca: {
                         buscar: inputBuscarLudoteca ? inputBuscarLudoteca.value : '',
+                        propiedad: selectPropiedadLudoteca ? selectPropiedadLudoteca.value : 'todos',
                         estado: selectFiltroLudoteca ? selectFiltroLudoteca.value : 'todos',
                         orden: selectOrdenLudoteca ? selectOrdenLudoteca.value : 'alfabetico'
                     },
@@ -352,6 +373,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     var huboCambioLudoteca = false;
                     if (inputBuscarLudoteca && typeof estado.ludoteca.buscar === 'string' && estado.ludoteca.buscar !== '') {
                         inputBuscarLudoteca.value = estado.ludoteca.buscar;
+                        huboCambioLudoteca = true;
+                    }
+                    if (selectPropiedadLudoteca && estado.ludoteca.propiedad && estado.ludoteca.propiedad !== 'todos') {
+                        selectPropiedadLudoteca.value = estado.ludoteca.propiedad;
                         huboCambioLudoteca = true;
                     }
                     if (selectFiltroLudoteca && estado.ludoteca.estado && estado.ludoteca.estado !== 'todos') {

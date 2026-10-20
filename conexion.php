@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Europe/Madrid');
 session_start();
 
 // =========================================================================
@@ -20,6 +21,9 @@ try {
             PDO::ATTR_EMULATE_PREPARES   => false
         ]
     );
+    // Sincronizar zona horaria de MySQL con Europe/Madrid (+01:00 o +02:00 según horario de verano/invierno)
+    $offsetMadrid = (new DateTime('now', new DateTimeZone('Europe/Madrid')))->format('P');
+    $pdo->exec("SET time_zone = '{$offsetMadrid}'");
 } catch (PDOException $e) {
     die("Error al conectar con los archivos de la Taberna (Base de Datos): " . htmlspecialchars($e->getMessage()));
 }
