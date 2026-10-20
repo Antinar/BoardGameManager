@@ -268,4 +268,173 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     });
+
+    // =========================================================================
+    // 10. Persistencia universal de posición de scroll y estado (Ludoteca, Admin, Votaciones, Juegos, etc.)
+    // =========================================================================
+    (function () {
+        if ('scrollRestoration' in window.history) {
+            window.history.scrollRestoration = 'manual';
+        }
+
+        // Clave única por archivo y subpágina (ej: "ludoteca.php" vs "ludoteca.php?juego=Catan")
+        var archivoActual = window.location.pathname.split('/').pop() || 'index.php';
+        var claveVista = 'taberna_estado_' + archivoActual + window.location.search;
+
+        function guardarEstadoVistaActual() {
+            try {
+                // 1. Posición de scroll de cada contenedor de tabla (.tabla-contenedor)
+                var scrollsTablas = [];
+                document.querySelectorAll('.tabla-contenedor').forEach(function (cont) {
+                    scrollsTablas.push(cont.scrollTop);
+                });
+
+                // 2. Votaciones desplegadas (guardamos cuáles NO tienen la clase .contraida)
+                var votacionesAbiertas = [];
+                document.querySelectorAll('.votacion-bloque').forEach(function (bloque, idx) {
+                    var inputId = bloque.querySelector('input[name="id_votacion"]');
+                    var claveVot = inputId ? ('id_' + inputId.value) : ('idx_' + idx);
+                    if (!bloque.classList.contains('contraida')) {
+                        votacionesAbiertas.push(claveVot);
+                    }
+                });
+
+                // 3. Valores de buscadores de tablas y cuadrículas
+                var filtrosTablas = {};
+                document.querySelectorAll('[data-table-filter]').forEach(function (inp, idx) {
+                    var k = inp.getAttribute('data-table-filter') || ('t_' + idx);
+                    filtrosTablas[k] = inp.value;
+                });
+
+                var filtrosCards = {};
+                document.querySelectorAll('[data-card-filter]').forEach(function (inp, idx) {
+                    var k = inp.getAttribute('data-card-filter') || ('c_' + idx);
+                    filtrosCards[k] = inp.value;
+                });
+
+                var estado = {
+                    scrollY: window.scrollY || window.pageYOffset || 0,
+                    scrollsTablas: scrollsTablas,
+                    votacionesAbiertas: votacionesAbiertas,
+                    filtrosTablas: filtrosTablas,
+                    filtrosCards: filtrosCards,
+                    ludoteca: {
+                        buscar: inputBuscarLudoteca ? inputBuscarLudoteca.value : '',
+                        estado: selectFiltroLudoteca ? selectFiltroLudoteca.value : 'todos',
+                        orden: selectOrdenLudoteca ? selectOrdenLudoteca.value : 'alfabetico'
+                    },
+                    ts: Date.now()
+                };
+
+                sessionStorage.setItem(claveVista, JSON.stringify(estado));
+            } catch (e) {
+                // Ignorar si sessionStorage no está disponible
+            }
+        }
+
+        function restaurarEstadoVistaActual() {
+            try {
+                var raw = sessionStorage.getItem(claveVista);
+                if (!raw) return;
+
+                var estado = JSON.parse(raw);
+                if (!estado) return;
+
+                // 1. Restaurar filtros y ordenación de la Ludoteca antes de medir el scroll
+                if (contenedorLudoteca && estado.ludoteca) {
+                    var huboCambioLudoteca = false;
+                    if (inputBuscarLudoteca && typeof estado.ludoteca.buscar === 'string' && estado.ludoteca.buscar !== '') {
+                        inputBuscarLudoteca.value = estado.ludoteca.buscar;
+                        huboCambioLudoteca = true;
+                    }
+                    if (selectFiltroLudoteca && estado.ludoteca.estado && estado.ludoteca.estado !== 'todos') {
+                        selectFiltroLudoteca.value = estado.ludoteca.estado;
+                        huboCambioLudoteca = true;
+                    }
+                    if (selectOrdenLudoteca && estado.ludoteca.orden && estado.ludoteca.orden !== 'alfabetico') {
+                        selectOrdenLudoteca.value = estado.ludoteca.orden;
+                        huboCambioLudoteca = true;
+                    }
+                    if (huboCambioLudoteca && typeof actualizarVistaLudoteca === 'function') {
+                        actualizarVistaLudoteca();
+                    }
+                }
+
+                // 2. Restaurar buscadores de tablas ([data-table-filter])
+                if (estado.filtrosTablas) {
+                    document.querySelectorAll('[data-table-filter]').forEach(function (inp, idx) {
+                        var k = inp.getAttribute('data-table-filter') || ('t_' + idx);
+                        if (estado.filtrosTablas[k]) {
+                            inp.value = estado.filtrosTablas[k];
+                            inp.dispatchEvent(new Event('input'));
+                        }
+                    });
+                }
+
+                // 3. Restaurar buscadores de tarjetas ([data-card-filter])
+                if (estado.filtrosCards) {
+                    document.querySelectorAll('[data-card-filter]').forEach(function (inp, idx) {
+                        var k = inp.getAttribute('data-card-filter') || ('c_' + idx);
+                        if (estado.filtrosCards[k]) {
+                            inp.value = estado.filtrosCards[k];
+                            inp.dispatchEvent(new Event('input'));
+                        }
+                    });
+                }
+
+                // 4. Restaurar bloques de votación desplegados en votaciones.php
+                if (Array.isArray(estado.votacionesAbiertas) && estado.votacionesAbiertas.length > 0) {
+                    document.querySelectorAll('.votacion-bloque').forEach(function (bloque, idx) {
+                        var inputId = bloque.querySelector('input[name="id_votacion"]');
+                        var claveVot = inputId ? ('id_' + inputId.value) : ('idx_' + idx);
+                        if (estado.votacionesAbiertas.indexOf(claveVot) !== -1) {
+                            bloque.classList.remove('contraida');
+                        }
+                    });
+                }
+
+                // 5. Restaurar scroll interno de tablas (.tabla-contenedor) y scroll principal de ventana
+                window.requestAnimationFrame(function () {
+                    if (Array.isArray(estado.scrollsTablas)) {
+                        var contenedores = document.querySelectorAll('.tabla-contenedor');
+                        contenedores.forEach(function (cont, idx) {
+                            if (typeof estado.scrollsTablas[idx] === 'number') {
+                                cont.scrollTop = estado.scrollsTablas[idx];
+                            }
+                        });
+                    }
+                    if (typeof estado.scrollY === 'number') {
+                        window.scrollTo(0, estado.scrollY);
+                    }
+                });
+            } catch (e) {
+                // Ignorar errores de lectura de sessionStorage
+            }
+        }
+
+        // Guardar estado automáticamente al enviar cualquier formulario (Admin, Votaciones, Juegos, Ludoteca, etc.)
+        document.querySelectorAll('form').forEach(function (form) {
+            form.addEventListener('submit', guardarEstadoVistaActual);
+        });
+
+        // Guardar estado antes de abandonar o recargar la página (incluye clic en tarjetas de Ludoteca o botón Atrás)
+        window.addEventListener('pagehide', guardarEstadoVistaActual);
+        window.addEventListener('beforeunload', guardarEstadoVistaActual);
+
+        // Si el usuario pulsa directamente en la barra de navegación principal (.taberna-nav),
+        // limpiamos el scroll de la página de destino para entrar desde arriba de forma limpia
+        document.querySelectorAll('.taberna-nav .nav-enlace').forEach(function (enlace) {
+            enlace.addEventListener('click', function () {
+                try {
+                    var href = enlace.getAttribute('href');
+                    if (href) {
+                        sessionStorage.removeItem('taberna_estado_' + href);
+                    }
+                } catch (e) {}
+            });
+        });
+
+        // Ejecutar restauración al cargar el DOM
+        restaurarEstadoVistaActual();
+    })();
 });
