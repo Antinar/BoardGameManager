@@ -174,6 +174,7 @@ if ($juegoDetalle) {
             ];
         }
     }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
