@@ -6,15 +6,8 @@ $mensajeExito = '';
 $mensajeError = '';
 $usuarioActual = $_SESSION['username'];
 
-// Mapa oficial de calificaciones (1 a 5 -> valores exactos del ENUM en migration_ludoteca.sql)
-$escalaCalificaciones = [
-    1 => 'No me gustó',
-    2 => 'Meh',
-    3 => 'Está Bien',
-    4 => 'Me gustó bastante',
-    5 => '¿Pa cuando otra?'
-];
-$valoresEnumValidos = array_values($escalaCalificaciones);
+// Mapa oficial de calificaciones (0 a 10)
+$escalaCalificaciones = obtenerEscalaCalificaciones();
 
 // Juego seleccionado por GET (si el usuario ha clicado en un cuadrado)
 $juegoSeleccionadoNombre = isset($_GET['juego']) ? trim($_GET['juego']) : '';
@@ -24,8 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
     $nombreJuego = isset($_POST['NombreJuego']) ? trim($_POST['NombreJuego']) : '';
     $juegoSeleccionadoNombre = $nombreJuego; // Mantener en la vista de detalle del juego tras guardar
     $haJugado = (isset($_POST['ha_jugado']) && $_POST['ha_jugado'] === '1') ? 1 : 0;
-    $calificacion = isset($_POST['calificacion']) ? trim($_POST['calificacion']) : null;
-    $comentario = isset($_POST['comentario']) ? trim($_POST['comentario']) : null;
+    $calificacionRaw = isset($_POST['calificacion']) ? trim((string)$_POST['calificacion']) : '';
+    $comentario = isset($_POST['comentario']) ? trim($_POST['comentario']) : '';
+    $comentario = ($comentario !== '') ? $comentario : null;
+    $calificacion = null;
 
     // Verificar que el juego exista y esté en la taberna (lo_tenemos = 1)
     $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM Juego WHERE NombreJuego = ? AND lo_tenemos = 1");
@@ -35,14 +30,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
         $mensajeError = 'El juego indicado no existe o no forma parte de la ludoteca actual.';
     } else {
         if ($haJugado === 0) {
+            // No ha jugado: calificación obligatoriamente NULL ("Opinión previa"), pero se guarda el comentario
             $calificacion = null;
-            $comentario = null;
         } else {
-            if ($calificacion === '' || !in_array($calificacion, $valoresEnumValidos, true)) {
-                $mensajeError = 'Debes seleccionar una calificación válida del 1 al 5 si has jugado al juego.';
-            }
-            if ($comentario === '') {
-                $comentario = null;
+            $notaValida = filter_var($calificacionRaw, FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 0, 'max_range' => 10]
+            ]);
+            if ($calificacionRaw === '' || $notaValida === false || !array_key_exists((int)$notaValida, $escalaCalificaciones)) {
+                $mensajeError = 'Debes seleccionar una calificación válida del 0 al 10 si has jugado al juego.';
+            } else {
+                $calificacion = (int)$notaValida;
             }
         }
 
@@ -143,9 +140,9 @@ if ($juegoDetalle) {
     $stmtJuegos = $pdo->query("SELECT NombreJuego, Url FROM Juego WHERE lo_tenemos = 1 ORDER BY NombreJuego ASC");
     $juegosLudoteca = $stmtJuegos->fetchAll();
 
-    // Obtener todas las reseñas de los juegos de la ludoteca para calcular medias y el estado del usuario actual
+   // Obtener todas las reseñas de los juegos de la ludoteca para calcular medias (ignorando NULL) y el estado del usuario actual
     $stmtTodasRes = $pdo->query("
-        SELECT r.username, r.NombreJuego, r.ha_jugado, r.calificacion
+        SELECT r.username, r.NombreJuego, r.ha_jugado, r.calificacion, r.comentario
         FROM Resenya r
         INNER JOIN Juego j ON r.NombreJuego = j.NombreJuego AND j.lo_tenemos = 1
     ");
@@ -157,26 +154,26 @@ if ($juegoDetalle) {
     foreach ($stmtTodasRes->fetchAll() as $filaR) {
         $nJ = $filaR['NombreJuego'];
         $jugo = (int)$filaR['ha_jugado'] === 1;
-        $numNota = array_search($filaR['calificacion'], $escalaCalificaciones, true);
+        $numNota = ($filaR['calificacion'] !== null && $filaR['calificacion'] !== '') ? (int)$filaR['calificacion'] : false;
 
-        // Solo cuentan para la media las reseñas jugadas que tengan calificación válida (1 a 5)
-        if ($jugo && $numNota !== false) {
+        // Solo cuentan para la media las reseñas jugadas con calificación no NULL (0 a 10)
+        if ($jugo && $numNota !== false && array_key_exists($numNota, $escalaCalificaciones)) {
             if (!isset($sumaNotasPorJuego[$nJ])) {
                 $sumaNotasPorJuego[$nJ] = 0;
                 $totalNotasPorJuego[$nJ] = 0;
             }
-            $sumaNotasPorJuego[$nJ] += (int)$numNota;
+            $sumaNotasPorJuego[$nJ] += $numNota;
             $totalNotasPorJuego[$nJ]++;
         }
 
         if ($filaR['username'] === $usuarioActual) {
             $miResenyaPorJuego[$nJ] = [
-                'ha_jugado' => $jugo ? 1 : 0,
-                'nota_num'  => ($numNota !== false) ? (int)$numNota : null
+                'ha_jugado'        => $jugo ? 1 : 0,
+                'nota_num'         => ($numNota !== false) ? $numNota : null,
+                'tiene_comentario' => ($filaR['comentario'] !== null && trim((string)$filaR['comentario']) !== '')
             ];
         }
     }
-}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -246,23 +243,23 @@ if ($juegoDetalle) {
                         </div>
                     </div>
 
-                    <div id="bloque_opinion_<?php echo $hashJ; ?>" class="bloque-opinion-ludoteca" style="<?php echo $heJugado ? '' : 'display:none;'; ?>">
+                  <div id="bloque_opinion_<?php echo $hashJ; ?>" class="bloque-opinion-ludoteca" style="<?php echo $heJugado ? '' : 'display:none;'; ?>">
                         <div class="grupo-form">
-                            <label for="cal_<?php echo $hashJ; ?>">¿Cuánto te ha gustado? (1 a 5):</label>
-                            <select id="cal_<?php echo $hashJ; ?>" name="calificacion" class="select-taberna" <?php echo $heJugado ? 'required' : ''; ?>>
-                                <option value="">-- Selecciona del 1 al 5 --</option>
+                            <label for="cal_<?php echo $hashJ; ?>">¿Cuánto te ha gustado? (0 a 10):</label>
+                            <select id="cal_<?php echo $hashJ; ?>" name="calificacion" class="select-taberna" <?php echo $heJugado ? 'required' : 'disabled'; ?>>
+                                <option value="">-- Selecciona del 0 al 10 --</option>
                                 <?php foreach ($escalaCalificaciones as $num => $textoEnum): ?>
-                                    <option value="<?php echo h($textoEnum); ?>" <?php echo ($miCalificacion === $textoEnum) ? 'selected' : ''; ?>>
-                                        <?php echo $num . ' - ' . h($textoEnum); ?>
+                                    <option value="<?php echo (int)$num; ?>" <?php echo ($miCalificacion !== '' && (int)$miCalificacion === (int)$num) ? 'selected' : ''; ?>>
+                                        <?php echo (int)$num . ' - ' . h($textoEnum); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                    </div>
 
-                        <div class="grupo-form">
-                            <label for="com_<?php echo $hashJ; ?>">Tu opinión (opcional):</label>
-                            <textarea id="com_<?php echo $hashJ; ?>" name="comentario" class="input-taberna" rows="3" placeholder="Escribe qué te pareció el juego..."><?php echo h($miComentario); ?></textarea>
-                        </div>
+                    <div class="grupo-form">
+                        <label for="com_<?php echo $hashJ; ?>">Tu opinión o comentario previo (opcional):</label>
+                        <textarea id="com_<?php echo $hashJ; ?>" name="comentario" class="input-taberna" rows="3" placeholder="Escribe qué te pareció el juego o tu opinión previa si aún no lo has jugado..."><?php echo h($miComentario); ?></textarea>
                     </div>
 
                     <button type="submit" class="btn btn-primario">
@@ -334,11 +331,11 @@ if ($juegoDetalle) {
             <?php else: ?>
                 <div class="tabla-contenedor">
                     <table class="tabla-taberna">
-                        <thead>
+                   <thead>
                             <tr>
                                 <th style="width:200px;">Jugador</th>
                                 <th style="width:120px;">¿Jugado?</th>
-                                <th style="width:220px;">Calificación (1-5)</th>
+                                <th style="width:220px;">Calificación (0-10)</th>
                                 <th>Opinión</th>
                             </tr>
                         </thead>
@@ -346,8 +343,9 @@ if ($juegoDetalle) {
                             <?php foreach ($listaResenyas as $res): ?>
                                 <?php
                                 $jugo = (int)$res['ha_jugado'] === 1;
-                                $numEscala = array_search($res['calificacion'], $escalaCalificaciones, true);
-                                $etiquetaNota = ($numEscala !== false) ? ($numEscala . '/5 — ' . $res['calificacion']) : '—';
+                                $tieneNota = ($jugo && $res['calificacion'] !== null && $res['calificacion'] !== '');
+                                $notaInt = $tieneNota ? (int)$res['calificacion'] : null;
+                                $textoNota = ($notaInt !== null && isset($escalaCalificaciones[$notaInt])) ? $escalaCalificaciones[$notaInt] : '';
                                 ?>
                                 <tr>
                                     <td>
@@ -362,14 +360,14 @@ if ($juegoDetalle) {
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <?php if ($jugo && $res['calificacion'] !== null): ?>
-                                            <span class="etiqueta etiqueta-bronce"><?php echo h($etiquetaNota); ?></span>
+                                        <?php if ($tieneNota): ?>
+                                            <span class="etiqueta etiqueta-disponible"><?php echo (int)$notaInt . '/10 — ' . h($textoNota); ?></span>
                                         <?php else: ?>
-                                            <span>—</span>
+                                            <span class="etiqueta etiqueta-bronce">Opinión previa</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <?php if ($jugo && $res['comentario'] !== null && trim($res['comentario']) !== ''): ?>
+                                        <?php if ($res['comentario'] !== null && trim((string)$res['comentario']) !== ''): ?>
                                             <?php echo nl2br(h($res['comentario'])); ?>
                                         <?php else: ?>
                                             <span style="font-style:italic; color:#5a4632;">Sin comentario</span>
@@ -424,19 +422,18 @@ if ($juegoDetalle) {
                         <?php
                         $nombreJ = $juego['NombreJuego'];
 
-                        // 1. Calcular nota media del juego (máximo 2 decimales, sin contar los no votados)
+                       // 1. Calcular nota media del juego con exactamente 1 decimal (ignorando NULL)
                         $tieneMedia = isset($totalNotasPorJuego[$nombreJ]) && $totalNotasPorJuego[$nombreJ] > 0;
                         if ($tieneMedia) {
-                            $mediaRedondeada = round($sumaNotasPorJuego[$nombreJ] / $totalNotasPorJuego[$nombreJ], 2);
-                            // Formatear con hasta 2 decimales eliminando ceros innecesarios (ej: 4.50 -> 4.5, 4.00 -> 4)
-                            $textoMedia = rtrim(rtrim(number_format($mediaRedondeada, 2, '.', ''), '0'), '.');
-                            $valorOrdenMedia = $mediaRedondeada;
+                            $mediaExacta = $sumaNotasPorJuego[$nombreJ] / $totalNotasPorJuego[$nombreJ];
+                            $textoMedia = number_format($mediaExacta, 1, '.', '');
+                            $valorOrdenMedia = round($mediaExacta, 2);
 
-                            if ($mediaRedondeada >= 4.5) {
+                            if ($mediaExacta >= 8.5) {
                                 $claseColorMedia = 'nota-verde-oscuro';
-                            } elseif ($mediaRedondeada >= 3.5) {
+                            } elseif ($mediaExacta >= 6.5) {
                                 $claseColorMedia = 'nota-verde-claro';
-                            } elseif ($mediaRedondeada >= 2.5) {
+                            } elseif ($mediaExacta >= 4.5) {
                                 $claseColorMedia = 'nota-amarillo';
                             } else {
                                 $claseColorMedia = 'nota-rojo';
@@ -455,12 +452,17 @@ if ($juegoDetalle) {
                         } elseif ($miResenyaPorJuego[$nombreJ]['ha_jugado'] === 1) {
                             $miEstadoFiltro = 'jugado';
                             $notaPropia = $miResenyaPorJuego[$nombreJ]['nota_num'];
-                            $textoMiEstado = 'Jugado - ' . ($notaPropia !== null ? $notaPropia : '?') . '/5';
+                            $textoMiEstado = 'Jugado - ' . ($notaPropia !== null ? $notaPropia : '?') . '/10';
                             $claseMiEstado = 'estado-jugado';
                         } else {
                             $miEstadoFiltro = 'no_jugado';
-                            $textoMiEstado = 'No jugado';
-                            $claseMiEstado = 'estado-no-jugado';
+                            if (!empty($miResenyaPorJuego[$nombreJ]['tiene_comentario'])) {
+                                $textoMiEstado = 'Opinión previa';
+                                $claseMiEstado = 'estado-opinion-previa';
+                            } else {
+                                $textoMiEstado = 'No jugado';
+                                $claseMiEstado = 'estado-no-jugado';
+                            }
                         }
                         ?>
                         <a href="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>"

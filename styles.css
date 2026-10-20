@@ -1002,3 +1002,91 @@ body {
     line-height: 1.5;
     color: #1f140e;
 }
+
+/* =========================================================================
+ *  INTEGRACIÓN DE LOGOTIPO EN CABECERA, ESCALA 0-10 Y "OPINIÓN PREVIA"
+ *  ========================================================================= */
+.taberna-titulo-bloque {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.header-logo-enlace {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #23170f;
+    border: 2px solid #4a3219;
+    border-radius: 2px;
+    padding: 3px;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.header-logo-enlace:hover {
+    border-color: #a67c2e;
+    background-color: #2b1d12;
+}
+
+.header-logo-img {
+    max-height: 48px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.header-titulo-enlace {
+    text-decoration: none;
+    color: #e8dcb8;
+}
+
+.header-titulo-enlace:hover .taberna-titulo {
+    color: #ffffff;
+}
+
+/* Estado en tarjeta de Ludoteca cuando tiene comentario sin haber jugado */
+.tarjeta-ludoteca-estado.estado-opinion-previa {
+    background-color: #a67c2e;
+    color: #1a110b;
+    border-color: #1a110b;
+}
+
+/* Aviso rústico en el formulario cuando se marca "No lo he jugado" */
+.aviso-opinion-previa {
+    background-color: #f7f1df;
+    border: 2px solid #a67c2e;
+    border-radius: 2px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    font-size: 0.92rem;
+    color: #23170f;
+}
+
+/* Recuadro de Nota Media en la vista de detalle de Ludoteca */
+.resumen-media-detalle {
+    margin-top: 10px;
+    background-color: #dfd1a7;
+    border: 2px solid #4a3219;
+    border-radius: 2px;
+    padding: 10px;
+    text-align: center;
+}
+
+.resumen-media-numero {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #8c2d19;
+}
+
+@media (max-width: 768px) {
+    .taberna-titulo-bloque {
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .header-logo-img {
+        max-height: 40px;
+    }
+}

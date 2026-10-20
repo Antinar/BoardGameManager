@@ -198,67 +198,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mensajeExito = "Voto individual #{$idVoto} eliminado.";
             }
         }
-
-        // =====================================================================
-        // 7. CRUD TABLA RESENYA (LUDOTECA)
+// =====================================================================
+        // 7. CRUD TABLA RESENYA (LUDOTECA 0-10 Y OPINIÓN PREVIA)
         // =====================================================================
         elseif ($entidad === 'resenya') {
-            $calificacionesPermitidas = [
-                'No me gustó',
-                'Meh',
-                'Está Bien',
-                'Me gustó bastante',
-                '¿Pa cuando otra?'
-            ];
+            $escalaPermitida = obtenerEscalaCalificaciones();
 
-            if ($operacion === 'crear') {
+            if ($operacion === 'crear' || $operacion === 'editar') {
                 $userR = trim($_POST['username']);
                 $juegoR = trim($_POST['NombreJuego']);
                 $haJugadoR = (isset($_POST['ha_jugado']) && $_POST['ha_jugado'] === '1') ? 1 : 0;
-                $calR = isset($_POST['calificacion']) ? trim($_POST['calificacion']) : '';
+                $calRaw = isset($_POST['calificacion']) ? trim((string)$_POST['calificacion']) : '';
                 $comR = isset($_POST['comentario']) ? trim($_POST['comentario']) : '';
+                $comR = ($comR !== '') ? $comR : null;
+                $calR = null;
 
-                if ($haJugadoR === 0) {
-                    $calR = null;
-                    $comR = null;
-                } else {
-                    $calR = in_array($calR, $calificacionesPermitidas, true) ? $calR : null;
-                    $comR = ($comR !== '') ? $comR : null;
+                if ($haJugadoR === 1 && $calRaw !== '') {
+                    $notaValida = filter_var($calRaw, FILTER_VALIDATE_INT, [
+                        'options' => ['min_range' => 0, 'max_range' => 10]
+                    ]);
+                    if ($notaValida !== false && array_key_exists((int)$notaValida, $escalaPermitida)) {
+                        $calR = (int)$notaValida;
+                    }
                 }
 
-                $stmt = $pdo->prepare("
-                    INSERT INTO Resenya (username, NombreJuego, ha_jugado, calificacion, comentario)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE
-                        ha_jugado = VALUES(ha_jugado),
-                        calificacion = VALUES(calificacion),
-                        comentario = VALUES(comentario)
-                ");
-                $stmt->execute([$userR, $juegoR, $haJugadoR, $calR, $comR]);
-                $mensajeExito = "Reseña de «{$userR}» sobre «{$juegoR}» guardada.";
-            } elseif ($operacion === 'editar') {
-                $idRes = (int)$_POST['id_resenya'];
-                $userR = trim($_POST['username']);
-                $juegoR = trim($_POST['NombreJuego']);
-                $haJugadoR = (isset($_POST['ha_jugado']) && $_POST['ha_jugado'] === '1') ? 1 : 0;
-                $calR = isset($_POST['calificacion']) ? trim($_POST['calificacion']) : '';
-                $comR = isset($_POST['comentario']) ? trim($_POST['comentario']) : '';
-
-                if ($haJugadoR === 0) {
-                    $calR = null;
-                    $comR = null;
+                if ($operacion === 'crear') {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO Resenya (username, NombreJuego, ha_jugado, calificacion, comentario)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            ha_jugado = VALUES(ha_jugado),
+                            calificacion = VALUES(calificacion),
+                            comentario = VALUES(comentario)
+                    ");
+                    $stmt->execute([$userR, $juegoR, $haJugadoR, $calR, $comR]);
+                    $mensajeExito = "Reseña de «{$userR}» sobre «{$juegoR}» guardada.";
                 } else {
-                    $calR = in_array($calR, $calificacionesPermitidas, true) ? $calR : null;
-                    $comR = ($comR !== '') ? $comR : null;
+                    $idRes = (int)$_POST['id_resenya'];
+                    $stmt = $pdo->prepare("
+                        UPDATE Resenya
+                        SET username = ?, NombreJuego = ?, ha_jugado = ?, calificacion = ?, comentario = ?
+                        WHERE id_resenya = ?
+                    ");
+                    $stmt->execute([$userR, $juegoR, $haJugadoR, $calR, $comR, $idRes]);
+                    $mensajeExito = "Reseña #{$idRes} actualizada correctamente.";
                 }
-
-                $stmt = $pdo->prepare("
-                    UPDATE Resenya
-                    SET username = ?, NombreJuego = ?, ha_jugado = ?, calificacion = ?, comentario = ?
-                    WHERE id_resenya = ?
-                ");
-                $stmt->execute([$userR, $juegoR, $haJugadoR, $calR, $comR, $idRes]);
-                $mensajeExito = "Reseña #{$idRes} actualizada correctamente.";
             } elseif ($operacion === 'eliminar') {
                 $idRes = (int)$_POST['id_resenya'];
                 $stmt = $pdo->prepare("DELETE FROM Resenya WHERE id_resenya = ?");
@@ -283,13 +267,7 @@ $victorias = $pdo->query("SELECT * FROM Victoria ORDER BY id_victoria DESC")->fe
 $votaciones = $pdo->query("SELECT * FROM Votacion ORDER BY id_votacion DESC")->fetchAll();
 $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
 $resenyas = $pdo->query("SELECT * FROM Resenya ORDER BY fecha_resenya DESC, id_resenya DESC")->fetchAll();
-$escalaAdminResenyas = [
-    1 => 'No me gustó',
-    2 => 'Meh',
-    3 => 'Está Bien',
-    4 => 'Me gustó bastante',
-    5 => '¿Pa cuando otra?'
-];
+$escalaAdminResenyas = obtenerEscalaCalificaciones();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -784,12 +762,12 @@ $escalaAdminResenyas = [
                 </select>
             </div>
 
-            <div>
-                <label>Calificación (1-5):</label>
+   <div>
+                <label>Calificación (0-10):</label>
                 <select name="calificacion" class="select-taberna">
                     <option value="">-- Ninguna (NULL) --</option>
                     <?php foreach ($escalaAdminResenyas as $num => $txtCal): ?>
-                        <option value="<?php echo h($txtCal); ?>"><?php echo $num . ' - ' . h($txtCal); ?></option>
+                        <option value="<?php echo (int)$num; ?>"><?php echo (int)$num . ' - ' . h($txtCal); ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -852,12 +830,12 @@ $escalaAdminResenyas = [
                                     <option value="0" <?php echo (int)$r['ha_jugado'] === 0 ? 'selected' : ''; ?>>No (0)</option>
                                 </select>
                             </td>
-                            <td>
+                   <td>
                                 <select form="<?php echo $formIdR; ?>" name="calificacion" class="select-taberna">
-                                    <option value="">-- NULL --</option>
+                                    <option value="">-- NULL (Opinión previa) --</option>
                                     <?php foreach ($escalaAdminResenyas as $num => $txtCal): ?>
-                                        <option value="<?php echo h($txtCal); ?>" <?php echo $r['calificacion'] === $txtCal ? 'selected' : ''; ?>>
-                                            <?php echo $num . ' - ' . h($txtCal); ?>
+                                        <option value="<?php echo (int)$num; ?>" <?php echo ($r['calificacion'] !== null && $r['calificacion'] !== '' && (int)$r['calificacion'] === (int)$num) ? 'selected' : ''; ?>>
+                                            <?php echo (int)$num . ' - ' . h($txtCal); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>

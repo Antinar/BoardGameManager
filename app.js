@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
     
-    // 6. Mostrar / ocultar campos de calificación (1-5) y opinión en Ludoteca según "¿Lo has jugado?"
+    // 6. Mostrar / ocultar selector de calificación (0-10) según "¿Lo has jugado?"
     var radiosJugado = document.querySelectorAll('input[type="radio"][data-toggle-jugado]');
     radiosJugado.forEach(function (radio) {
         radio.addEventListener('change', function () {
@@ -155,10 +155,17 @@ document.addEventListener('DOMContentLoaded', function () {
             var selectCal = bloque.querySelector('select[name="calificacion"]');
             if (radio.value === '1' && radio.checked) {
                 bloque.style.display = '';
-                if (selectCal) selectCal.required = true;
+                if (selectCal) {
+                    selectCal.disabled = false;
+                    selectCal.required = true;
+                }
             } else {
                 bloque.style.display = 'none';
-                if (selectCal) selectCal.required = false;
+                if (selectCal) {
+                    selectCal.disabled = true;
+                    selectCal.required = false;
+                    selectCal.value = '';
+                }
             }
         });
     });

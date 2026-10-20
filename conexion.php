@@ -32,6 +32,25 @@ function h($cadena) {
 }
 
 /**
+ * Devuelve la escala oficial de calificaciones (0 a 10).
+ */
+function obtenerEscalaCalificaciones() {
+    return [
+        0  => 'Injugable',
+        1  => 'Malo malo malo',
+        2  => 'Malo',
+        3  => 'Meh',
+        4  => 'No funciona bien',
+        5  => 'Not my cup of tea but...',
+        6  => 'Tiene sus cosas',
+        7  => 'Ta bien',
+        8  => 'Lowkey',
+        9  => 'This is my shit',
+        10 => '¿Pa cuando otra?'
+    ];
+}
+
+/**
  * Verifica que el usuario tenga sesión iniciada y sincroniza sus datos actuales con la BD.
  */
 function requerirLogin(PDO $pdo) {
@@ -136,10 +155,25 @@ function renderizarNavegacion($paginaActiva = '') {
     $nombreMostrar = isset($_SESSION['NombrePersona']) ? $_SESSION['NombrePersona'] : '';
     $userMostrar = isset($_SESSION['username']) ? $_SESSION['username'] : '';
     ?>
+    ?>
+    <script>
+    if (!document.querySelector('link[rel="icon"]')) {
+        var fav = document.createElement('link');
+        fav.rel = 'icon';
+        fav.type = 'image/png';
+        fav.href = 'img/logo.png';
+        document.head.appendChild(fav);
+    }
+    </script>
     <header class="taberna-header">
-        <div class="taberna-titulo-bloque">
-            <h1 class="taberna-titulo">La Taberna de las Gatitas Jugonas</h1>
-        </div>
+    <div class="taberna-titulo-bloque">
+    <a href="index.php" class="header-logo-enlace" title="Ir al Inicio">
+    <img src="img/logo.png" alt="Logo La Taberna de las Gatitas Jugonas" class="header-logo-img">
+    </a>
+    <a href="index.php" class="header-titulo-enlace">
+    <h1 class="taberna-titulo">La Taberna de las Gatitas Jugonas</h1>
+    </a>
+    </div>
         <div class="taberna-usuario-bloque">
             <span class="usuario-etiqueta">
                 <strong><?php echo h($nombreMostrar); ?></strong> (<?php echo h($userMostrar); ?>)

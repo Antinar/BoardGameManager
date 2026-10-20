@@ -129,6 +129,29 @@ CREATE TABLE `Voto` (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- -------------------------------------------------------------------------
+-- 7. Tabla Resenya (Valoraciones 0-10 y Opiniones Previas con NULL)
+-- -------------------------------------------------------------------------
+DROP TABLE IF EXISTS `Resenya`;
+
+CREATE TABLE `Resenya` (
+    `id_resenya` INT NOT NULL AUTO_INCREMENT,
+    `username` VARCHAR(50) NOT NULL,
+    `NombreJuego` VARCHAR(120) NOT NULL,
+    `ha_jugado` TINYINT(1) NOT NULL DEFAULT 0,
+    `calificacion` TINYINT UNSIGNED NULL DEFAULT NULL,
+    `comentario` TEXT NULL DEFAULT NULL,
+    `fecha_resenya` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id_resenya`),
+    UNIQUE KEY `resenya_unica_usuario_juego` (`username`, `NombreJuego`),
+    CONSTRAINT `fk_resenya_persona`
+        FOREIGN KEY (`username`) REFERENCES `Persona` (`username`)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT `fk_resenya_juego`
+        FOREIGN KEY (`NombreJuego`) REFERENCES `Juego` (`NombreJuego`)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
 -- DATOS INICIALES DE PRUEBA
 -- -------------------------------------------------------------------------
 INSERT INTO `Persona` (`username`, `NombrePersona`, `contrasenya`, `rol`, `inscrito_leaderboard`) VALUES
