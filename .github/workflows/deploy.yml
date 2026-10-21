@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+    workflow_dispatch:
 jobs:
   web-deploy:
     name: Desplegar por FTP
@@ -29,6 +30,7 @@ jobs:
           define('SMTP_FROM', '${{ secrets.SMTP_USER }}');
           define('SMTP_FROM_NAME', 'La Taberna de las Gatitas Jugonas');
           EOF
+          echo "// Build: $(date -u +%s)" >> smtp_config.php
 
       - name: Sincronizar archivos con InfinityFree
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
