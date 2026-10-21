@@ -51,12 +51,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($operacion === 'editar') {
                 $originalNombre = $_POST['original_NombreJuego'];
                 $nuevoNombre = trim($_POST['NombreJuego']);
-                $urlActual = trim($_POST['Url']);
+                $urlActual = isset($_POST['ruta_imagen_actual']) ? trim($_POST['ruta_imagen_actual']) : '';
+                if ($urlActual === '') {
+                    $stmtUrlOrig = $pdo->prepare("SELECT Url FROM Juego WHERE NombreJuego = ?");
+                    $stmtUrlOrig->execute([$originalNombre]);
+                    $urlActual = (string)$stmtUrlOrig->fetchColumn();
+                }
                 $loTenemos = (isset($_POST['lo_tenemos']) && $_POST['lo_tenemos'] === '1') ? 1 : 0;
                 $minJug = max(1, (int)(isset($_POST['min_jugadores']) ? $_POST['min_jugadores'] : 1));
                 $maxJug = max($minJug, (int)(isset($_POST['max_jugadores']) ? $_POST['max_jugadores'] : $minJug));
-                $descJ = isset($_POST['descripcion']) && trim($_POST['descripcion']) !== '' ? trim($_POST['descripcion']) : null;
-                $reglasJ = isset($_POST['reglas']) && trim($_POST['reglas']) !== '' ? trim($_POST['reglas']) : null;
+                $descTexto = obtenerTextoPostSeguro('descripcion');
+                $reglasTexto = obtenerTextoPostSeguro('reglas');
+                $descJ = ($descTexto !== '') ? $descTexto : null;
+                $reglasJ = ($reglasTexto !== '') ? $reglasTexto : null;
                 $propietariosSel = (isset($_POST['propietarios']) && is_array($_POST['propietarios'])) ? $_POST['propietarios'] : [];
 
                 if (isset($_FILES['nueva_imagen']) && $_FILES['nueva_imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
@@ -328,7 +335,7 @@ if ($juegoEditarNombre !== '') {
                     <img src="<?php echo h($juegoEditarDetalle['Url']); ?>" alt="<?php echo h($nomJEdit); ?>">
                 </div>
 
-                <form method="POST" action="admin.php?editar_juego=<?php echo urlencode($nomJEdit); ?>" enctype="multipart/form-data" class="pergamino-secundario form-ludoteca">
+                <form method="POST" action="admin.php" enctype="multipart/form-data" class="pergamino-secundario form-ludoteca" data-form-juego-seguro>
                     <input type="hidden" name="entidad" value="juego">
                     <input type="hidden" name="operacion" value="editar">
                     <input type="hidden" name="original_NombreJuego" value="<?php echo h($nomJEdit); ?>">
@@ -360,9 +367,8 @@ if ($juegoEditarNombre !== '') {
                     </div>
 
                     <div class="grupo-form">
-                        <label>Ruta actual de la imagen (Url):</label>
-                        <input type="text" name="Url" value="<?php echo h($juegoEditarDetalle['Url']); ?>" class="input-taberna" required style="margin-bottom:8px;">
-                        <label>O subir una imagen nueva (Máx 5 MB):</label>
+                        <label>Subir una imagen nueva (opcional, Máx 5 MB):</label>
+                        <input type="hidden" name="ruta_imagen_actual" value="<?php echo h($juegoEditarDetalle['Url']); ?>">
                         <input type="file" name="nueva_imagen" class="input-taberna" accept="image/*">
                     </div>
 
@@ -385,11 +391,13 @@ if ($juegoEditarNombre !== '') {
                     <div class="grupo-form">
                         <label>Descripción:</label>
                         <textarea name="descripcion" class="input-taberna" rows="3" placeholder="Descripción del juego..."><?php echo h((string)$juegoEditarDetalle['descripcion']); ?></textarea>
+                        <input type="hidden" name="descripcion_b64" value="">
                     </div>
 
                     <div class="grupo-form">
                         <label>Reglas / Notas de partida:</label>
                         <textarea name="reglas" class="input-taberna" rows="4" placeholder="Reglas o resumen de partida..."><?php echo h((string)$juegoEditarDetalle['reglas']); ?></textarea>
+                        <input type="hidden" name="reglas_b64" value="">
                     </div>
 
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">

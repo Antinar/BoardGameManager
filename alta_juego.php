@@ -14,8 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
     $loTenemos = (isset($_POST['lo_tenemos']) && $_POST['lo_tenemos'] === '1') ? 1 : 0;
     $minJugadores = isset($_POST['min_jugadores']) ? (int)$_POST['min_jugadores'] : 0;
     $maxJugadores = isset($_POST['max_jugadores']) ? (int)$_POST['max_jugadores'] : 0;
-    $descripcion = isset($_POST['descripcion']) ? trim($_POST['descripcion']) : '';
-    $reglas = isset($_POST['reglas']) ? trim($_POST['reglas']) : '';
+    $descripcion = obtenerTextoPostSeguro('descripcion');
+    $reglas = obtenerTextoPostSeguro('reglas');
     $propietarios = (isset($_POST['propietarios']) && is_array($_POST['propietarios'])) ? $_POST['propietarios'] : [];
 
     if ($nombreJuego === '') {
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
             <div class="alerta alerta-exito"><?php echo h($mensajeExito); ?></div>
         <?php endif; ?>
 
-        <form method="POST" action="alta_juego.php" enctype="multipart/form-data">
+        <form method="POST" action="alta_juego.php" enctype="multipart/form-data" data-form-juego-seguro>
             <input type="hidden" name="accion" value="crear_juego">
 
             <div class="grupo-form">
@@ -120,11 +120,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
             <div class="grupo-form">
                 <label for="descripcion">Descripción del Juego (opcional):</label>
                 <textarea id="descripcion" name="descripcion" class="input-taberna" rows="3" placeholder="De qué trata el juego, ambientación, duración aproximada..."></textarea>
+                <input type="hidden" name="descripcion_b64" value="">
             </div>
 
             <div class="grupo-form">
                 <label for="reglas">Resumen de Reglas / Notas de Partida (opcional):</label>
                 <textarea id="reglas" name="reglas" class="input-taberna" rows="4" placeholder="Reglas principales, preparación de la mesa o enlaces a manual..."></textarea>
+                <input type="hidden" name="reglas_b64" value="">
             </div>
 
             <div class="grupo-form">

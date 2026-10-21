@@ -42,6 +42,21 @@ function h($cadena) {
 }
 
 /**
+ * Decodifica campos de texto largo enviados en Base64 desde el cliente
+ * para evitar falsos positivos 403 Forbidden del WAF openresty en InfinityFree.
+ */
+function obtenerTextoPostSeguro($nombreCampo) {
+    $campoB64 = $nombreCampo . '_b64';
+    if (isset($_POST[$campoB64]) && $_POST[$campoB64] !== '') {
+        $decodificado = base64_decode((string)$_POST[$campoB64], true);
+        if ($decodificado !== false) {
+            return trim($decodificado);
+        }
+    }
+    return isset($_POST[$nombreCampo]) ? trim((string)$_POST[$nombreCampo]) : '';
+}
+
+/**
  * Devuelve la escala oficial de calificaciones (0 a 10).
  */
 function obtenerEscalaCalificaciones() {

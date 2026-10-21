@@ -296,6 +296,41 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // 9.B. Empaquetado seguro en Base64 para formularios de crear/editar juego (evita 403 Forbidden de openresty en InfinityFree)
+    function textoABase64Utf8(texto) {
+        try {
+            var bytes = new TextEncoder().encode(texto);
+            var binario = '';
+            for (var i = 0; i < bytes.length; i++) {
+                binario += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binario);
+        } catch (e) {
+            return window.btoa(unescape(encodeURIComponent(texto)));
+        }
+    }
+
+    var formsJuegoSeguro = document.querySelectorAll('form[data-form-juego-seguro]');
+    formsJuegoSeguro.forEach(function (form) {
+        form.addEventListener('submit', function () {
+            ['descripcion', 'reglas'].forEach(function (campo) {
+                var txtArea = form.querySelector('textarea[name="' + campo + '"]');
+                var inputB64 = form.querySelector('input[name="' + campo + '_b64"]');
+                if (txtArea && inputB64) {
+                    inputB64.value = txtArea.value !== '' ? textoABase64Utf8(txtArea.value) : '';
+                    // Deshabilitar el textarea original en el envío para que openresty no inspeccione el texto libre
+                    txtArea.disabled = true;
+                }
+            });
+
+            // Si el input file opcional (nueva_imagen) está vacío, deshabilitarlo para no mandar un stream binario vacío
+            var inputFileOpcional = form.querySelector('input[type="file"][name="nueva_imagen"]');
+            if (inputFileOpcional && (!inputFileOpcional.files || inputFileOpcional.files.length === 0)) {
+                inputFileOpcional.disabled = true;
+            }
+        });
+    });
+
     // =========================================================================
     // 10. Persistencia universal de posición de scroll y estado (Ludoteca, Admin, Votaciones, Juegos, etc.)
     // =========================================================================
