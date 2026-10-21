@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // 9.B. Empaquetado seguro en Hexadecimal para formularios de crear/editar juego (evita 403 Forbidden de openresty en InfinityFree)
+    // 9.B. Empaquetado seguro en Hexadecimal de textos e imágenes (evita 100% el 403 Forbidden de openresty en InfinityFree)
     function textoAHexUtf8(texto) {
         var bytes;
         if (typeof TextEncoder !== 'undefined') {
@@ -316,9 +316,101 @@ document.addEventListener('DOMContentLoaded', function () {
         return hex;
     }
 
+    function dataUrlAHex(dataUrl) {
+        var partes = dataUrl.split(',');
+        var b64 = partes.length > 1 ? partes[1] : '';
+        var binario = window.atob(b64);
+        var hex = '';
+        for (var i = 0; i < binario.length; i++) {
+            var h = binario.charCodeAt(i).toString(16);
+            hex += (h.length === 1 ? '0' + h : h);
+        }
+        return hex;
+    }
+
     var formsJuegoSeguro = document.querySelectorAll('form[data-form-juego-seguro]');
     formsJuegoSeguro.forEach(function (form) {
-        form.addEventListener('submit', function () {
+        // Crear inputs ocultos para transportar la imagen en hexadecimal sin usar multipart/form-data
+        var inputImgHex = document.createElement('input');
+        inputImgHex.type = 'hidden';
+        inputImgHex.name = 'imagen_cliente_hex';
+        form.appendChild(inputImgHex);
+
+        var inputImgNom = document.createElement('input');
+        inputImgNom.type = 'hidden';
+        inputImgNom.name = 'imagen_cliente_nombre';
+        form.appendChild(inputImgNom);
+
+        var inputFile = form.querySelector('input[type="file"]');
+        var btnSubmit = form.querySelector('button[type="submit"]');
+        var procesandoImg = false;
+
+        if (inputFile) {
+            inputFile.addEventListener('change', function () {
+                inputImgHex.value = '';
+                inputImgNom.value = '';
+
+                if (!inputFile.files || !inputFile.files[0]) {
+                    return;
+                }
+
+                var archivo = inputFile.files[0];
+                if (archivo.size > 5 * 1024 * 1024) {
+                    return;
+                }
+
+                procesandoImg = true;
+                if (btnSubmit) btnSubmit.disabled = true;
+
+                var lector = new FileReader();
+                lector.onload = function (ev) {
+                    var imgObj = new Image();
+                    imgObj.onload = function () {
+                        var maxDim = 800;
+                        var w = imgObj.width;
+                        var h = imgObj.height;
+                        if (w > maxDim || h > maxDim) {
+                            if (w > h) {
+                                h = Math.round((h * maxDim) / w);
+                                w = maxDim;
+                            } else {
+                                w = Math.round((w * maxDim) / h);
+                                h = maxDim;
+                            }
+                        }
+
+                        var canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        var ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#23170f';
+                        ctx.fillRect(0, 0, w, h);
+                        ctx.drawImage(imgObj, 0, 0, w, h);
+
+                        var jpegDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                        inputImgHex.value = dataUrlAHex(jpegDataUrl);
+                        inputImgNom.value = archivo.name || 'juego.jpg';
+                        inputFile.removeAttribute('required');
+
+                        procesandoImg = false;
+                        if (btnSubmit) btnSubmit.disabled = false;
+                    };
+                    imgObj.onerror = function () {
+                        procesandoImg = false;
+                        if (btnSubmit) btnSubmit.disabled = false;
+                    };
+                    imgObj.src = ev.target.result;
+                };
+                lector.readAsDataURL(archivo);
+            });
+        }
+
+        form.addEventListener('submit', function (e) {
+            if (procesandoImg) {
+                e.preventDefault();
+                return;
+            }
+
             ['descripcion', 'reglas'].forEach(function (campo) {
                 var txtArea = form.querySelector('textarea[data-campo-seguro="' + campo + '"], textarea[name="' + campo + '"]');
                 var inputHex = form.querySelector('input[name="' + campo + '_hex"]');
@@ -329,13 +421,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            // Si el input file opcional (nueva_imagen) está vacío, deshabilitarlo y pasar a envío normal sin multipart
-            var inputFileOpcional = form.querySelector('input[type="file"][name="nueva_imagen"]');
-            if (inputFileOpcional && (!inputFileOpcional.files || inputFileOpcional.files.length === 0)) {
-                inputFileOpcional.disabled = true;
-                form.setAttribute('enctype', 'application/x-www-form-urlencoded');
-                form.enctype = 'application/x-www-form-urlencoded';
+            // Deshabilitar siempre el input file binario y forzar envío estándar x-www-form-urlencoded
+            if (inputFile) {
+                inputFile.disabled = true;
+                inputFile.removeAttribute('name');
             }
+            form.setAttribute('enctype', 'application/x-www-form-urlencoded');
+            form.enctype = 'application/x-www-form-urlencoded';
         });
     });
 

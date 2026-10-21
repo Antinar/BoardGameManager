@@ -126,18 +126,75 @@ function requerirAdmin(PDO $pdo) {
  * Procesa la subida de una imagen de juego a la carpeta uploads/ respetando el límite de 5 MB.
  */
 function procesarSubidaImagen($campoArchivo, &$errorMsg) {
+    $directorio = __DIR__ . '/uploads';
+    if (!is_dir($directorio)) {
+        if (!@mkdir($directorio, 0755, true)) {
+            $errorMsg = "No se pudo crear el directorio uploads/ en el servidor.";
+            return false;
+        }
+    }
+
+    // 1. Vía principal anti-403: Imagen procesada en cliente y enviada en Hexadecimal por POST estándar
+    if (isset($_POST['imagen_cliente_hex']) && $_POST['imagen_cliente_hex'] !== '') {
+        $hex = preg_replace('/[^0-9a-fA-F]/', '', (string)$_POST['imagen_cliente_hex']);
+        if ($hex === '' || strlen($hex) % 2 !== 0) {
+            $errorMsg = "Los datos de la imagen enviada están incompletos.";
+            return false;
+        }
+
+        $binario = @hex2bin($hex);
+        if ($binario === false || strlen($binario) < 32) {
+            $errorMsg = "No se pudo decodificar la imagen enviada.";
+            return false;
+        }
+
+        $maxBytes = 5 * 1024 * 1024;
+        if (strlen($binario) > $maxBytes) {
+            $errorMsg = "La imagen supera el tamaño máximo permitido de 5 MB.";
+            return false;
+        }
+
+        if (function_exists('getimagesizefromstring')) {
+            $infoImg = @getimagesizefromstring($binario);
+            if ($infoImg === false) {
+                $errorMsg = "El archivo seleccionado no es una imagen válida.";
+                return false;
+            }
+        }
+
+        $nombreOrig = isset($_POST['imagen_cliente_nombre']) ? (string)$_POST['imagen_cliente_nombre'] : 'juego.jpg';
+        $nombreLimpio = preg_replace('/[^a-zA-Z0-9_-]/', '_', pathinfo($nombreOrig, PATHINFO_FILENAME));
+        $nombreLimpiado = substr($nombreLimpio, 0, 40);
+        if ($nombreLimpiado === '') {
+            $nombreLimpiado = 'juego';
+        }
+
+        $nombreFinal = $nombreLimpiado . '_' . time() . '_' . mt_rand(100, 999) . '.jpg';
+        $rutaDestinoServidor = $directorio . '/' . $nombreFinal;
+        $rutaRelativaBD = 'uploads/' . $nombreFinal;
+
+        if (@file_put_contents($rutaDestinoServidor, $binario) === false) {
+            $errorMsg = "No se pudo guardar la imagen en la carpeta uploads/.";
+            return false;
+        }
+
+        return $rutaRelativaBD;
+    }
+
+    // 2. Respaldo clásico por $_FILES
     if (!isset($_FILES[$campoArchivo]) || $_FILES[$campoArchivo]['error'] === UPLOAD_ERR_NO_FILE) {
         $errorMsg = "Debes seleccionar un archivo de imagen para el juego.";
         return false;
     }
 
     $archivo = $_FILES[$campoArchivo];
+
     if ($archivo['error'] !== UPLOAD_ERR_OK) {
         $errorMsg = "Error al subir el archivo (Código: " . (int)$archivo['error'] . ").";
         return false;
     }
 
-    $maxBytes = 5 * 1024 * 1024; // 5 MB máximo
+    $maxBytes = 5 * 1024 * 1024;
     if ($archivo['size'] > $maxBytes) {
         $errorMsg = "La imagen supera el tamaño máximo permitido de 5 MB.";
         return false;
@@ -154,14 +211,6 @@ function procesarSubidaImagen($campoArchivo, &$errorMsg) {
     if ($infoImagen === false) {
         $errorMsg = "El archivo subido no es una imagen válida.";
         return false;
-    }
-
-    $directorio = __DIR__ . '/uploads';
-    if (!is_dir($directorio)) {
-        if (!mkdir($directorio, 0755, true)) {
-            $errorMsg = "No se pudo crear el directorio uploads/ en el servidor.";
-            return false;
-        }
     }
 
     $nombreLimpio = preg_replace('/[^a-zA-Z0-9_-]/', '_', pathinfo($archivo['name'], PATHINFO_FILENAME));

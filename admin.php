@@ -63,11 +63,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $reglasJ = ($reglasTexto !== '') ? $reglasTexto : null;
                 $propietariosSel = (isset($_POST['propietarios']) && is_array($_POST['propietarios'])) ? $_POST['propietarios'] : [];
 
-                if (isset($_FILES['nueva_imagen']) && $_FILES['nueva_imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
+                $hayNuevaImagen = (isset($_POST['imagen_cliente_hex']) && $_POST['imagen_cliente_hex'] !== '')
+                    || (isset($_FILES['nueva_imagen']) && $_FILES['nueva_imagen']['error'] !== UPLOAD_ERR_NO_FILE);
+
+                if ($hayNuevaImagen) {
                     $errImg = '';
                     $nuevaRuta = procesarSubidaImagen('nueva_imagen', $errImg);
                     if ($nuevaRuta === false) {
                         throw new Exception($errImg);
+                    }
+                    if ($urlActual !== '' && strpos($urlActual, 'uploads/') === 0 && file_exists(__DIR__ . '/' . $urlActual)) {
+                        @unlink(__DIR__ . '/' . $urlActual);
                     }
                     $urlActual = $nuevaRuta;
                 }

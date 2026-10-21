@@ -43,4 +43,6 @@ jobs:
             **/.git*
             **/.git*/**
             sql/**
+            uploads/
+            uploads/**
             README.md
