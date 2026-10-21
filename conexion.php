@@ -46,6 +46,16 @@ function h($cadena) {
  * para evitar falsos positivos 403 Forbidden del WAF openresty en InfinityFree.
  */
 function obtenerTextoPostSeguro($nombreCampo) {
+    $campoHex = $nombreCampo . '_hex';
+    if (isset($_POST[$campoHex]) && $_POST[$campoHex] !== '') {
+        $hex = preg_replace('/[^0-9a-fA-F]/', '', (string)$_POST[$campoHex]);
+        if ($hex !== '' && strlen($hex) % 2 === 0) {
+            $bin = @hex2bin($hex);
+            if ($bin !== false) {
+                return trim($bin);
+            }
+        }
+    }
     $campoB64 = $nombreCampo . '_b64';
     if (isset($_POST[$campoB64]) && $_POST[$campoB64] !== '') {
         $decodificado = base64_decode((string)$_POST[$campoB64], true);

@@ -296,37 +296,45 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // 9.B. Empaquetado seguro en Base64 para formularios de crear/editar juego (evita 403 Forbidden de openresty en InfinityFree)
-    function textoABase64Utf8(texto) {
-        try {
-            var bytes = new TextEncoder().encode(texto);
-            var binario = '';
-            for (var i = 0; i < bytes.length; i++) {
-                binario += String.fromCharCode(bytes[i]);
+    // 9.B. Empaquetado seguro en Hexadecimal para formularios de crear/editar juego (evita 403 Forbidden de openresty en InfinityFree)
+    function textoAHexUtf8(texto) {
+        var bytes;
+        if (typeof TextEncoder !== 'undefined') {
+            bytes = new TextEncoder().encode(texto);
+        } else {
+            var utf8 = unescape(encodeURIComponent(texto));
+            bytes = [];
+            for (var j = 0; j < utf8.length; j++) {
+                bytes.push(utf8.charCodeAt(j));
             }
-            return window.btoa(binario);
-        } catch (e) {
-            return window.btoa(unescape(encodeURIComponent(texto)));
         }
+        var hex = '';
+        for (var i = 0; i < bytes.length; i++) {
+            var h = bytes[i].toString(16);
+            hex += (h.length === 1 ? '0' + h : h);
+        }
+        return hex;
     }
 
     var formsJuegoSeguro = document.querySelectorAll('form[data-form-juego-seguro]');
     formsJuegoSeguro.forEach(function (form) {
         form.addEventListener('submit', function () {
             ['descripcion', 'reglas'].forEach(function (campo) {
-                var txtArea = form.querySelector('textarea[name="' + campo + '"]');
-                var inputB64 = form.querySelector('input[name="' + campo + '_b64"]');
-                if (txtArea && inputB64) {
-                    inputB64.value = txtArea.value !== '' ? textoABase64Utf8(txtArea.value) : '';
-                    // Deshabilitar el textarea original en el envío para que openresty no inspeccione el texto libre
-                    txtArea.disabled = true;
+                var txtArea = form.querySelector('textarea[data-campo-seguro="' + campo + '"], textarea[name="' + campo + '"]');
+                var inputHex = form.querySelector('input[name="' + campo + '_hex"]');
+                if (txtArea && inputHex) {
+                    var val = txtArea.value.trim();
+                    inputHex.value = val !== '' ? textoAHexUtf8(val) : '';
+                    txtArea.removeAttribute('name');
                 }
             });
 
-            // Si el input file opcional (nueva_imagen) está vacío, deshabilitarlo para no mandar un stream binario vacío
+            // Si el input file opcional (nueva_imagen) está vacío, deshabilitarlo y pasar a envío normal sin multipart
             var inputFileOpcional = form.querySelector('input[type="file"][name="nueva_imagen"]');
             if (inputFileOpcional && (!inputFileOpcional.files || inputFileOpcional.files.length === 0)) {
                 inputFileOpcional.disabled = true;
+                form.setAttribute('enctype', 'application/x-www-form-urlencoded');
+                form.enctype = 'application/x-www-form-urlencoded';
             }
         });
     });

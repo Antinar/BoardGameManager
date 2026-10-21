@@ -51,12 +51,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($operacion === 'editar') {
                 $originalNombre = $_POST['original_NombreJuego'];
                 $nuevoNombre = trim($_POST['NombreJuego']);
-                $urlActual = isset($_POST['ruta_imagen_actual']) ? trim($_POST['ruta_imagen_actual']) : '';
-                if ($urlActual === '') {
-                    $stmtUrlOrig = $pdo->prepare("SELECT Url FROM Juego WHERE NombreJuego = ?");
-                    $stmtUrlOrig->execute([$originalNombre]);
-                    $urlActual = (string)$stmtUrlOrig->fetchColumn();
-                }
+                $stmtUrlOrig = $pdo->prepare("SELECT Url FROM Juego WHERE NombreJuego = ?");
+                $stmtUrlOrig->execute([$originalNombre]);
+                $urlActual = (string)$stmtUrlOrig->fetchColumn();
                 $loTenemos = (isset($_POST['lo_tenemos']) && $_POST['lo_tenemos'] === '1') ? 1 : 0;
                 $minJug = max(1, (int)(isset($_POST['min_jugadores']) ? $_POST['min_jugadores'] : 1));
                 $maxJug = max($minJug, (int)(isset($_POST['max_jugadores']) ? $_POST['max_jugadores'] : $minJug));
@@ -368,7 +365,6 @@ if ($juegoEditarNombre !== '') {
 
                     <div class="grupo-form">
                         <label>Subir una imagen nueva (opcional, Máx 5 MB):</label>
-                        <input type="hidden" name="ruta_imagen_actual" value="<?php echo h($juegoEditarDetalle['Url']); ?>">
                         <input type="file" name="nueva_imagen" class="input-taberna" accept="image/*">
                     </div>
 
@@ -390,14 +386,14 @@ if ($juegoEditarNombre !== '') {
 
                     <div class="grupo-form">
                         <label>Descripción:</label>
-                        <textarea name="descripcion" class="input-taberna" rows="3" placeholder="Descripción del juego..."><?php echo h((string)$juegoEditarDetalle['descripcion']); ?></textarea>
-                        <input type="hidden" name="descripcion_b64" value="">
+                        <textarea data-campo-seguro="descripcion" class="input-taberna" rows="3" placeholder="Descripción del juego..."><?php echo h((string)$juegoEditarDetalle['descripcion']); ?></textarea>
+                        <input type="hidden" name="descripcion_hex" value="">
                     </div>
 
                     <div class="grupo-form">
                         <label>Reglas / Notas de partida:</label>
-                        <textarea name="reglas" class="input-taberna" rows="4" placeholder="Reglas o resumen de partida..."><?php echo h((string)$juegoEditarDetalle['reglas']); ?></textarea>
-                        <input type="hidden" name="reglas_b64" value="">
+                        <textarea data-campo-seguro="reglas" class="input-taberna" rows="4" placeholder="Reglas o resumen de partida..."><?php echo h((string)$juegoEditarDetalle['reglas']); ?></textarea>
+                        <input type="hidden" name="reglas_hex" value="">
                     </div>
 
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -929,6 +925,6 @@ if ($juegoEditarNombre !== '') {
     <?php endif; ?>
 </main>
 
-<script src="app.js"></script>
+<script src="app.js?v=<?php echo @filemtime(__DIR__ . '/app.js') ?: time(); ?>"></script>
 </body>
 </html>

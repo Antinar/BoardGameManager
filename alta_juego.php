@@ -119,14 +119,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
 
             <div class="grupo-form">
                 <label for="descripcion">Descripción del Juego (opcional):</label>
-                <textarea id="descripcion" name="descripcion" class="input-taberna" rows="3" placeholder="De qué trata el juego, ambientación, duración aproximada..."></textarea>
-                <input type="hidden" name="descripcion_b64" value="">
+                <textarea id="descripcion" data-campo-seguro="descripcion" class="input-taberna" rows="3" placeholder="De qué trata el juego, ambientación, duración aproximada..."></textarea>
+                <input type="hidden" name="descripcion_hex" value="">
             </div>
 
             <div class="grupo-form">
                 <label for="reglas">Resumen de Reglas / Notas de Partida (opcional):</label>
-                <textarea id="reglas" name="reglas" class="input-taberna" rows="4" placeholder="Reglas principales, preparación de la mesa o enlaces a manual..."></textarea>
-                <input type="hidden" name="reglas_b64" value="">
+                <textarea id="reglas" data-campo-seguro="reglas" class="input-taberna" rows="4" placeholder="Reglas principales, preparación de la mesa o enlaces a manual..."></textarea>
+                <input type="hidden" name="reglas_hex" value="">
             </div>
 
             <div class="grupo-form">
@@ -172,6 +172,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
     </section>
 </main>
 
-<script src="app.js"></script>
+<script src="app.js?v=<?php echo @filemtime(__DIR__ . '/app.js') ?: time(); ?>"></script>
 </body>
 </html>
