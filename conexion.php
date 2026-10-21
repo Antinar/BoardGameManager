@@ -180,7 +180,6 @@ function renderizarNavegacion($paginaActiva = '') {
     $nombreMostrar = isset($_SESSION['NombrePersona']) ? $_SESSION['NombrePersona'] : '';
     $userMostrar = isset($_SESSION['username']) ? $_SESSION['username'] : '';
     ?>
-
     <script>
     if (!document.querySelector('link[rel="icon"]')) {
         var fav = document.createElement('link');
