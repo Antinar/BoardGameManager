@@ -2,13 +2,18 @@
 date_default_timezone_set('Europe/Madrid');
 session_start();
 
+// Cargar configuración generada por GitHub Actions (BD y SMTP)
+if (file_exists(__DIR__ . '/smtp_config.php')) {
+    require_once __DIR__ . '/smtp_config.php';
+}
+
 // =========================================================================
-// CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS (AJUSTAR EN INFINITYFREE)
+// CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS (DESDE SECRETOS DE GITHUB)
 // =========================================================================
-$db_host = 'sql209.infinityfree.com';               // En InfinityFree ej: sqlXXX.infinityfree.com
-$db_name = 'if0_43192957_gatarras';     // Nombre de tu base de datos en phpMyAdmin
-$db_user = 'if0_43192957';                    // En InfinityFree ej: if0_XXXXXXX
-$db_pass = 'oxDMlEqYAbP';                        // Contraseña de tu cuenta de hosting
+$db_host = defined('DB_HOST') ? DB_HOST : (getenv('DB_HOST') ?: 'localhost');
+$db_name = defined('DB_NAME') ? DB_NAME : (getenv('DB_NAME') ?: '');
+$db_user = defined('DB_USER') ? DB_USER : (getenv('DB_USER') ?: '');
+$db_pass = defined('DB_PASS') ? DB_PASS : (getenv('DB_PASS') ?: '');
 
 try {
     $pdo = new PDO(
@@ -25,7 +30,8 @@ try {
     $offsetMadrid = (new DateTime('now', new DateTimeZone('Europe/Madrid')))->format('P');
     $pdo->exec("SET time_zone = '{$offsetMadrid}'");
 } catch (PDOException $e) {
-    die("Error al conectar con los archivos de la Taberna (Base de Datos): " . htmlspecialchars($e->getMessage()));
+    error_log("Error de conexión BD: " . $e->getMessage());
+    die("Error al conectar con los archivos de la Taberna (Base de Datos).");
 }
 
 /**
@@ -159,7 +165,7 @@ function renderizarNavegacion($paginaActiva = '') {
     $nombreMostrar = isset($_SESSION['NombrePersona']) ? $_SESSION['NombrePersona'] : '';
     $userMostrar = isset($_SESSION['username']) ? $_SESSION['username'] : '';
     ?>
-    ?>
+
     <script>
     if (!document.querySelector('link[rel="icon"]')) {
         var fav = document.createElement('link');
@@ -222,10 +228,6 @@ function renderizarBuscador($placeholder = 'Buscar...', array $opciones = []) {
     <?php
 }
 
-// Cargar configuración SMTP generada por GitHub Actions si existe
-if (file_exists(__DIR__ . '/smtp_config.php')) {
-    require_once __DIR__ . '/smtp_config.php';
-}
 
 /**
  * Lee la respuesta del servidor SMTP.
