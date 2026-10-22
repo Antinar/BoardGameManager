@@ -481,9 +481,12 @@ if ($juegoEditarNombre !== '') {
 
     <!-- 2. GESTIÓN DE JUEGOS (SOLO MINIATURA, NOMBRE Y ACCIONES) -->
     <section class="pergamino">
-        <h3 class="seccion-titulo">2. Juegos Registrados (<?php echo count($juegos); ?>)</h3>
+        <div class="barra-titulo-filtro">
+            <h3 class="seccion-titulo" style="margin-bottom:0; border-bottom:none;">2. Juegos Registrados (<?php echo count($juegos); ?>)</h3>
+            <?php renderizarBuscador('Buscar juego...', ['target_table' => 'tabla-admin-juegos']); ?>
+        </div>
         <div class="tabla-contenedor">
-            <table class="tabla-taberna">
+            <table class="tabla-taberna" id="tabla-admin-juegos">
                 <thead>
                     <tr>
                         <th style="width:110px;">Miniatura</th>
