@@ -51,19 +51,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($operacion === 'editar') {
                 $originalNombre = $_POST['original_NombreJuego'];
                 $nuevoNombre = trim($_POST['NombreJuego']);
-                $urlActual = trim($_POST['Url']);
+                $stmtUrlOrig = $pdo->prepare("SELECT Url FROM Juego WHERE NombreJuego = ?");
+                $stmtUrlOrig->execute([$originalNombre]);
+                $urlActual = (string)$stmtUrlOrig->fetchColumn();
                 $loTenemos = (isset($_POST['lo_tenemos']) && $_POST['lo_tenemos'] === '1') ? 1 : 0;
                 $minJug = max(1, (int)(isset($_POST['min_jugadores']) ? $_POST['min_jugadores'] : 1));
                 $maxJug = max($minJug, (int)(isset($_POST['max_jugadores']) ? $_POST['max_jugadores'] : $minJug));
-                $descJ = isset($_POST['descripcion']) && trim($_POST['descripcion']) !== '' ? trim($_POST['descripcion']) : null;
-                $reglasJ = isset($_POST['reglas']) && trim($_POST['reglas']) !== '' ? trim($_POST['reglas']) : null;
+                $descTexto = obtenerTextoPostSeguro('descripcion');
+                $reglasTexto = obtenerTextoPostSeguro('reglas');
+                $descJ = ($descTexto !== '') ? $descTexto : null;
+                $reglasJ = ($reglasTexto !== '') ? $reglasTexto : null;
                 $propietariosSel = (isset($_POST['propietarios']) && is_array($_POST['propietarios'])) ? $_POST['propietarios'] : [];
 
-                if (isset($_FILES['nueva_imagen']) && $_FILES['nueva_imagen']['error'] !== UPLOAD_ERR_NO_FILE) {
+                $hayNuevaImagen = (isset($_POST['imagen_cliente_hex']) && $_POST['imagen_cliente_hex'] !== '')
+                    || (isset($_FILES['nueva_imagen']) && $_FILES['nueva_imagen']['error'] !== UPLOAD_ERR_NO_FILE);
+
+                if ($hayNuevaImagen) {
                     $errImg = '';
                     $nuevaRuta = procesarSubidaImagen('nueva_imagen', $errImg);
                     if ($nuevaRuta === false) {
                         throw new Exception($errImg);
+                    }
+                    if ($urlActual !== '' && strpos($urlActual, 'uploads/') === 0 && file_exists(__DIR__ . '/' . $urlActual)) {
+                        @unlink(__DIR__ . '/' . $urlActual);
                     }
                     $urlActual = $nuevaRuta;
                 }
@@ -328,7 +338,7 @@ if ($juegoEditarNombre !== '') {
                     <img src="<?php echo h($juegoEditarDetalle['Url']); ?>" alt="<?php echo h($nomJEdit); ?>">
                 </div>
 
-                <form method="POST" action="admin.php?editar_juego=<?php echo urlencode($nomJEdit); ?>" enctype="multipart/form-data" class="pergamino-secundario form-ludoteca">
+                <form method="POST" action="admin.php" enctype="multipart/form-data" class="pergamino-secundario form-ludoteca" data-form-juego-seguro>
                     <input type="hidden" name="entidad" value="juego">
                     <input type="hidden" name="operacion" value="editar">
                     <input type="hidden" name="original_NombreJuego" value="<?php echo h($nomJEdit); ?>">
@@ -360,9 +370,7 @@ if ($juegoEditarNombre !== '') {
                     </div>
 
                     <div class="grupo-form">
-                        <label>Ruta actual de la imagen (Url):</label>
-                        <input type="text" name="Url" value="<?php echo h($juegoEditarDetalle['Url']); ?>" class="input-taberna" required style="margin-bottom:8px;">
-                        <label>O subir una imagen nueva (Máx 5 MB):</label>
+                        <label>Subir una imagen nueva (opcional, Máx 5 MB):</label>
                         <input type="file" name="nueva_imagen" class="input-taberna" accept="image/*">
                     </div>
 
@@ -384,12 +392,14 @@ if ($juegoEditarNombre !== '') {
 
                     <div class="grupo-form">
                         <label>Descripción:</label>
-                        <textarea name="descripcion" class="input-taberna" rows="3" placeholder="Descripción del juego..."><?php echo h((string)$juegoEditarDetalle['descripcion']); ?></textarea>
+                        <textarea data-campo-seguro="descripcion" class="input-taberna" rows="3" placeholder="Descripción del juego..."><?php echo h((string)$juegoEditarDetalle['descripcion']); ?></textarea>
+                        <input type="hidden" name="descripcion_hex" value="">
                     </div>
 
                     <div class="grupo-form">
                         <label>Reglas / Notas de partida:</label>
-                        <textarea name="reglas" class="input-taberna" rows="4" placeholder="Reglas o resumen de partida..."><?php echo h((string)$juegoEditarDetalle['reglas']); ?></textarea>
+                        <textarea data-campo-seguro="reglas" class="input-taberna" rows="4" placeholder="Reglas o resumen de partida..."><?php echo h((string)$juegoEditarDetalle['reglas']); ?></textarea>
+                        <input type="hidden" name="reglas_hex" value="">
                     </div>
 
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -471,9 +481,12 @@ if ($juegoEditarNombre !== '') {
 
     <!-- 2. GESTIÓN DE JUEGOS (SOLO MINIATURA, NOMBRE Y ACCIONES) -->
     <section class="pergamino">
-        <h3 class="seccion-titulo">2. Juegos Registrados (<?php echo count($juegos); ?>)</h3>
+        <div class="barra-titulo-filtro">
+            <h3 class="seccion-titulo" style="margin-bottom:0; border-bottom:none;">2. Juegos Registrados (<?php echo count($juegos); ?>)</h3>
+            <?php renderizarBuscador('Buscar juego...', ['target_table' => 'tabla-admin-juegos']); ?>
+        </div>
         <div class="tabla-contenedor">
-            <table class="tabla-taberna">
+            <table class="tabla-taberna" id="tabla-admin-juegos">
                 <thead>
                     <tr>
                         <th style="width:110px;">Miniatura</th>
@@ -921,6 +934,6 @@ if ($juegoEditarNombre !== '') {
     <?php endif; ?>
 </main>
 
-<script src="app.js"></script>
+<script src="app.js?v=<?php echo @filemtime(__DIR__ . '/app.js') ?: time(); ?>"></script>
 </body>
 </html>

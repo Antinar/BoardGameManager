@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 jobs:
   web-deploy:
     name: Desplegar por FTP
@@ -11,10 +12,17 @@ jobs:
       - name: Obtener codigo del repositorio
         uses: actions/checkout@v4
 
-      - name: Generar configuracion SMTP segura desde GitHub Secrets
+      - name: Generar configuracion segura desde GitHub Secrets
         run: |
           cat << 'EOF' > smtp_config.php
           <?php
+          // Credenciales de Base de Datos (reutilizando los secretos de InfinityFree)
+          define('DB_HOST', 'sql209.infinityfree.com');
+          define('DB_NAME', '${{ secrets.FTP_USERNAME }}_gatarras');
+          define('DB_USER', '${{ secrets.FTP_USERNAME }}');
+          define('DB_PASS', '${{ secrets.FTP_PASSWORD }}');
+
+          // Credenciales SMTP
           define('SMTP_HOST', 'smtp.gmail.com');
           define('SMTP_PORT', 587);
           define('SMTP_USER', '${{ secrets.SMTP_USER }}');
@@ -22,6 +30,7 @@ jobs:
           define('SMTP_FROM', '${{ secrets.SMTP_USER }}');
           define('SMTP_FROM_NAME', 'La Taberna de las Gatitas Jugonas');
           EOF
+          echo "// Build: $(date -u +%s)" >> smtp_config.php
 
       - name: Sincronizar archivos con InfinityFree
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -30,3 +39,10 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: /htdocs/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            sql/**
+            uploads/
+            uploads/**
+            README.md
