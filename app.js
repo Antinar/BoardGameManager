@@ -26,6 +26,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // 1.1. Rotación suave de las imágenes de fondo del header (cada 2 segundos)
+    var capasFondoHeader = document.querySelectorAll('.header-fondo-img');
+    if (capasFondoHeader.length > 1) {
+        var movimientoReducidoHeader = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!movimientoReducidoHeader) {
+            var indiceFondoHeader = 0;
+            window.setInterval(function () {
+                if (document.hidden) return;
+                capasFondoHeader[indiceFondoHeader].classList.remove('activa');
+                indiceFondoHeader = (indiceFondoHeader + 1) % capasFondoHeader.length;
+                capasFondoHeader[indiceFondoHeader].classList.add('activa');
+            }, 2000);
+        }
+    }
+
     // 2. Previsualización de imagen antes de subirla
     var inputsImagen = document.querySelectorAll('input[type="file"][data-preview-target]');
     inputsImagen.forEach(function (input) {
@@ -89,7 +104,61 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-    // 5. Desplegar / Contraer bloques de votación y panel de edición del creador
+    // 5. Desplegar / Contraer bloques de votación (con animación) y panel de edición del creador
+    var prefiereMovimientoReducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function alternarVotacion(bloque) {
+        var cuerpo = bloque.querySelector('.votacion-cuerpo');
+        if (!cuerpo || prefiereMovimientoReducido) {
+            bloque.classList.toggle('contraida');
+            return;
+        }
+        if (bloque.getAttribute('data-animando') === '1') return;
+        bloque.setAttribute('data-animando', '1');
+
+        var estabaContraida = bloque.classList.contains('contraida');
+        var alturaInicial = estabaContraida ? 0 : cuerpo.scrollHeight;
+
+        cuerpo.style.overflow = 'hidden';
+        cuerpo.style.height = alturaInicial + 'px';
+        cuerpo.style.opacity = estabaContraida ? '0' : '1';
+        cuerpo.style.transition = 'height 0.32s ease, opacity 0.26s ease';
+
+        if (estabaContraida) {
+            bloque.classList.remove('contraida');
+        }
+
+        // Forzar un reflow para que el navegador registre el punto de partida.
+        void cuerpo.offsetHeight;
+
+        var alturaFinal = estabaContraida ? cuerpo.scrollHeight : 0;
+        cuerpo.style.height = alturaFinal + 'px';
+        cuerpo.style.opacity = estabaContraida ? '1' : '0';
+
+        var terminado = false;
+        function finalizarAnimacion() {
+            if (terminado) return;
+            terminado = true;
+            cuerpo.removeEventListener('transitionend', alTerminarTransicion);
+            if (!estabaContraida) {
+                bloque.classList.add('contraida');
+            }
+            cuerpo.style.height = '';
+            cuerpo.style.opacity = '';
+            cuerpo.style.overflow = '';
+            cuerpo.style.transition = '';
+            bloque.removeAttribute('data-animando');
+        }
+        function alTerminarTransicion(ev) {
+            if (ev.target === cuerpo && ev.propertyName === 'height') {
+                finalizarAnimacion();
+            }
+        }
+        cuerpo.addEventListener('transitionend', alTerminarTransicion);
+        // Respaldo por si transitionend no se dispara.
+        window.setTimeout(finalizarAnimacion, 500);
+    }
+
     var cabecerasVotacion = document.querySelectorAll('[data-toggle-votacion]');
     cabecerasVotacion.forEach(function (cabecera) {
         cabecera.addEventListener('click', function (e) {
@@ -98,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             var bloque = cabecera.closest('.votacion-bloque');
             if (!bloque) return;
-            bloque.classList.toggle('contraida');
+            alternarVotacion(bloque);
         });
     });
 
@@ -112,8 +181,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Si la votación estaba contraída al pulsar Editar, la desplegamos y abrimos el panel
             if (bloque && bloque.classList.contains('contraida')) {
-                bloque.classList.remove('contraida');
                 if (panel) panel.classList.remove('panel-oculto');
+                alternarVotacion(bloque);
                 return;
             }
             if (panel) {

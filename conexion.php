@@ -3,12 +3,12 @@ date_default_timezone_set('Europe/Madrid');
 session_start();
 
 // =========================================================================
-// CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS (AJUSTAR EN INFINITYFREE)
+// CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS (DESDE SECRETOS DE GITHUB)
 // =========================================================================
-$db_host = 'sql209.infinityfree.com';               // En InfinityFree ej: sqlXXX.infinityfree.com
-$db_name = 'if0_43192957_gatarras';     // Nombre de tu base de datos en phpMyAdmin
-$db_user = 'if0_43192957';                    // En InfinityFree ej: if0_XXXXXXX
-$db_pass = 'oxDMlEqYAbP';                        // Contraseña de tu cuenta de hosting
+$db_host = defined('DB_HOST') ? DB_HOST : (getenv('DB_HOST') ?: 'localhost');
+$db_name = defined('DB_NAME') ? DB_NAME : (getenv('DB_NAME') ?: '');
+$db_user = defined('DB_USER') ? DB_USER : (getenv('DB_USER') ?: '');
+$db_pass = defined('DB_PASS') ? DB_PASS : (getenv('DB_PASS') ?: '');
 
 try {
     $pdo = new PDO(
@@ -158,7 +158,21 @@ function renderizarNavegacion($paginaActiva = '') {
     $esAdmin = (isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin');
     $nombreMostrar = isset($_SESSION['NombrePersona']) ? $_SESSION['NombrePersona'] : '';
     $userMostrar = isset($_SESSION['username']) ? $_SESSION['username'] : '';
-    ?>
+
+    // Imágenes de fondo del header: se leen automáticamente de img/header/
+    $imagenesCabecera = [];
+    $directorioImagenesCabecera = __DIR__ . '/img/header';
+    if (is_dir($directorioImagenesCabecera)) {
+        $archivosCabecera = glob($directorioImagenesCabecera . '/*');
+        if (is_array($archivosCabecera)) {
+            sort($archivosCabecera, SORT_NATURAL | SORT_FLAG_CASE);
+            foreach ($archivosCabecera as $archivoCabecera) {
+                if (is_file($archivoCabecera) && preg_match('/\.(jpe?g|png|webp|gif|avif)$/i', $archivoCabecera)) {
+                    $imagenesCabecera[] = 'img/header/' . rawurlencode(basename($archivoCabecera));
+                }
+            }
+        }
+    }
     ?>
     <script>
     if (!document.querySelector('link[rel="icon"]')) {
@@ -169,38 +183,49 @@ function renderizarNavegacion($paginaActiva = '') {
         document.head.appendChild(fav);
     }
     </script>
-    <header class="taberna-header">
-    <div class="taberna-titulo-bloque">
-    <a href="index.php" class="header-logo-enlace" title="Ir al Inicio">
-    <img src="img/logo.png" alt="Logo La Taberna de las Gatitas Jugonas" class="header-logo-img">
-    </a>
-    <a href="index.php" class="header-titulo-enlace">
-    <h1 class="taberna-titulo">La Taberna de las Gatitas Jugonas</h1>
-    </a>
-    </div>
-        <div class="taberna-usuario-bloque">
-            <span class="usuario-etiqueta">
-                <strong><?php echo h($nombreMostrar); ?></strong> (<?php echo h($userMostrar); ?>)
-                <?php if ($esAdmin): ?>
-                    <span class="insignia-rol">[Admin]</span>
-                <?php endif; ?>
-            </span>
-            <a href="perfil.php" class="btn btn-bronce btn-pequeno <?php echo $paginaActiva === 'perfil' ? 'activo' : ''; ?>">Mi Perfil</a>
-            <a href="logout.php" class="btn btn-peligro btn-pequeno">Salir</a>
-        </div>
-    </header>
+    <div class="cabecera-fija">
+        <header class="taberna-header">
+            <?php if (count($imagenesCabecera) > 0): ?>
+                <div class="header-fondo" aria-hidden="true">
+                    <?php foreach ($imagenesCabecera as $indiceImagen => $imagenCabecera): ?>
+                        <span class="header-fondo-img<?php echo $indiceImagen === 0 ? ' activa' : ''; ?>"
+                              style="background-image:url('<?php echo h($imagenCabecera); ?>');"></span>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
 
-    <nav class="taberna-nav">
-        <a href="index.php" class="nav-enlace <?php echo $paginaActiva === 'index' ? 'activo' : ''; ?>">Inicio</a>
-        <a href="ludoteca.php" class="nav-enlace <?php echo $paginaActiva === 'ludoteca' ? 'activo' : ''; ?>">Ludoteca</a>
-        <a href="juegos.php" class="nav-enlace <?php echo $paginaActiva === 'juegos' ? 'activo' : ''; ?>">Juegos Deseados</a>
-        <a href="alta_juego.php" class="nav-enlace <?php echo $paginaActiva === 'alta_juego' ? 'activo' : ''; ?>">Subir Juego</a>
-        <a href="leaderboard.php" class="nav-enlace <?php echo $paginaActiva === 'leaderboard' ? 'activo' : ''; ?>">Leaderboard</a>
-        <a href="votaciones.php" class="nav-enlace <?php echo $paginaActiva === 'votaciones' ? 'activo' : ''; ?>">Votaciones</a>
-        <?php if ($esAdmin): ?>
-            <a href="admin.php" class="nav-enlace nav-admin <?php echo $paginaActiva === 'admin' ? 'activo' : ''; ?>">Admin</a>
-        <?php endif; ?>
-    </nav>
+            <div class="taberna-titulo-bloque">
+                <a href="index.php" class="header-logo-enlace" title="Ir al Inicio">
+                    <img src="img/logo.png" alt="Logo La Taberna de las Gatitas Jugonas" class="header-logo-img">
+                </a>
+                <a href="index.php" class="header-titulo-enlace">
+                    <h1 class="taberna-titulo">La Taberna de las Gatitas Jugonas</h1>
+                </a>
+            </div>
+            <div class="taberna-usuario-bloque">
+                <span class="usuario-etiqueta">
+                    <strong><?php echo h($nombreMostrar); ?></strong> (<?php echo h($userMostrar); ?>)
+                    <?php if ($esAdmin): ?>
+                        <span class="insignia-rol">[Admin]</span>
+                    <?php endif; ?>
+                </span>
+                <a href="perfil.php" class="btn btn-bronce btn-pequeno <?php echo $paginaActiva === 'perfil' ? 'activo' : ''; ?>"<?php echo $paginaActiva === 'perfil' ? ' aria-current="page"' : ''; ?>>Mi Perfil</a>
+                <a href="logout.php" class="btn btn-peligro btn-pequeno">Salir</a>
+            </div>
+        </header>
+
+        <nav class="taberna-nav">
+            <a href="index.php" class="nav-enlace <?php echo $paginaActiva === 'index' ? 'activo' : ''; ?>"<?php echo $paginaActiva === 'index' ? ' aria-current="page"' : ''; ?>>Inicio</a>
+            <a href="ludoteca.php" class="nav-enlace <?php echo $paginaActiva === 'ludoteca' ? 'activo' : ''; ?>"<?php echo $paginaActiva === 'ludoteca' ? ' aria-current="page"' : ''; ?>>Ludoteca</a>
+            <a href="juegos.php" class="nav-enlace <?php echo $paginaActiva === 'juegos' ? 'activo' : ''; ?>"<?php echo $paginaActiva === 'juegos' ? ' aria-current="page"' : ''; ?>>Juegos Deseados</a>
+            <a href="alta_juego.php" class="nav-enlace <?php echo $paginaActiva === 'alta_juego' ? 'activo' : ''; ?>"<?php echo $paginaActiva === 'alta_juego' ? ' aria-current="page"' : ''; ?>>Subir Juego</a>
+            <a href="leaderboard.php" class="nav-enlace <?php echo $paginaActiva === 'leaderboard' ? 'activo' : ''; ?>"<?php echo $paginaActiva === 'leaderboard' ? ' aria-current="page"' : ''; ?>>Leaderboard</a>
+            <a href="votaciones.php" class="nav-enlace <?php echo $paginaActiva === 'votaciones' ? 'activo' : ''; ?>"<?php echo $paginaActiva === 'votaciones' ? ' aria-current="page"' : ''; ?>>Votaciones</a>
+            <?php if ($esAdmin): ?>
+                <a href="admin.php" class="nav-enlace nav-admin <?php echo $paginaActiva === 'admin' ? 'activo' : ''; ?>"<?php echo $paginaActiva === 'admin' ? ' aria-current="page"' : ''; ?>>Admin</a>
+            <?php endif; ?>
+        </nav>
+    </div>
     <?php
 }
 
