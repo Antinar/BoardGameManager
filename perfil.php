@@ -134,14 +134,14 @@ $misDatos = $stmtDatos->fetch();
         </form>
     </section>
 
-    <section class="pergamino" style="max-width: 640px; margin: 0 auto; border-color: #6b1d14;">
-        <h3 class="seccion-titulo" style="color: #6b1d14;">Abandonar la Taberna (Eliminar Cuenta)</h3>
+    <section class="pergamino" style="max-width: 640px; margin: 0 auto; border-color: var(--primary-dark);">
+        <h3 class="seccion-titulo" style="color: var(--primary-dark);">Abandonar la Taberna (Eliminar Cuenta)</h3>
         <p style="margin-bottom: 12px;">
             Al eliminar tu cuenta se borrarán de forma permanente tu usuario, tus votos, reseñas y registros asociados.
         </p>
 
         <?php if ($misDatos['rol'] === 'admin'): ?>
-            <p style="font-weight:bold; color:#6b1d14;">
+            <p style="font-weight:bold; color:var(--primary-dark);">
                 Como tienes rol de Administrador, no puedes eliminar tu propia cuenta por seguridad.
             </p>
         <?php else: ?>

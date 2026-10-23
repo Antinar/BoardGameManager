@@ -289,7 +289,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                 <div class="votacion-bloque contraida <?php echo $estaCerrada ? 'votacion-cerrada' : ''; ?>">
                     <div class="votacion-cabecera votacion-plegable" data-toggle-votacion>
                         <div>
-                            <h3 style="font-size:1.25rem; color:#23170f;">
+                            <h3 style="font-size:1.25rem; color:var(--ink-strong);">
                                 <span class="indicador-plegado">&#9654;</span>
                                 <?php echo h($vot['titulo']); ?>
                             </h3>
@@ -328,7 +328,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                         <div class="pergamino-secundario" style="margin-bottom:12px; padding:10px 12px;">
                             <strong>Han votado en esta convocatoria (<?php echo count($listaParticipantes); ?>):</strong>
                             <?php if (count($listaParticipantes) === 0): ?>
-                                <em style="color:#5a4634;">Todavía no ha votado nadie.</em>
+                                <em style="color:var(--ink-soft);">Todavía no ha votado nadie.</em>
                             <?php else: ?>
                                 <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
                                     <?php foreach ($listaParticipantes as $uPart => $nomPart): ?>
@@ -343,7 +343,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                         <?php if (!$estaCerrada && $soyCreador): ?>
                             <!-- Panel de edición / cierre exclusivo para el creador de la votación -->
                             <div id="panel_editar_vot_<?php echo $idV; ?>" class="pergamino-secundario panel-editar-votacion panel-oculto">
-                                <h4 style="margin-bottom:8px; color:#23170f;">Editar Votación (El tipo de voto no se puede modificar)</h4>
+                                <h4 style="margin-bottom:8px; color:var(--ink-strong);">Editar Votación (El tipo de voto no se puede modificar)</h4>
                                 <form method="POST" action="votaciones.php" class="grid-tres-columnas" style="align-items:end;">
                                     <input type="hidden" name="accion" value="editar_votacion">
                                     <input type="hidden" name="id_votacion" value="<?php echo $idV; ?>">
@@ -363,7 +363,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                                     </div>
                                 </form>
 
-                                <form method="POST" action="votaciones.php" class="form-confirmar-borrado" data-confirm-msg="¿Cerrar ya esta votación? Ya no se podrá votar más y solo se verán los resultados durante 1 día." style="margin-top:10px; border-top:1px solid #4a3219; padding-top:8px; display:flex; justify-content:flex-end;">
+                                <form method="POST" action="votaciones.php" class="form-confirmar-borrado" data-confirm-msg="¿Cerrar ya esta votación? Ya no se podrá votar más y solo se verán los resultados durante 1 día." style="margin-top:10px; border-top:1px solid var(--line); padding-top:8px; display:flex; justify-content:flex-end;">
                                     <input type="hidden" name="accion" value="cerrar_votacion">
                                     <input type="hidden" name="id_votacion" value="<?php echo $idV; ?>">
                                     <button type="submit" class="btn btn-peligro btn-pequeno">Cerrar Votación Ahora</button>
@@ -402,7 +402,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                                             </div>
 
                                             <div>
-                                                <p style="margin:6px 0; font-weight:bold; color:#362417;">
+                                                <p style="margin:6px 0; font-weight:bold; color:var(--header-bg);">
                                                     Votos recibidos: <?php echo $votosActuales; ?>
                                                 </p>
                                             </div>
@@ -447,10 +447,10 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                                             </div>
 
                                             <div>
-                                                <p style="margin:6px 0; font-weight:bold; color:#362417;">
+                                                <p style="margin:6px 0; font-weight:bold; color:var(--header-bg);">
                                                     Votos recibidos: <?php echo $votosActuales; ?>
                                                 </p>
-                                                <label class="radio-item" style="background-color:#dfd1a7; padding:6px 8px; border:1px solid #4a3219; font-weight:bold;">
+                                                <label class="radio-item" style="background-color:var(--surface-2); padding:6px 8px; border:1px solid var(--line); font-weight:bold;">
                                                     <?php if ($esMultiple): ?>
                                                         <input type="checkbox" name="juegos_multiples[]" value="<?php echo h($nomJ); ?>" <?php echo $votadoPorMi ? 'checked' : ''; ?>>
                                                         Seleccionar este juego

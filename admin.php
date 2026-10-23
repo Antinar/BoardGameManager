@@ -316,7 +316,7 @@ if ($juegoEditarNombre !== '') {
         $loTenEdit = ((int)$juegoEditarDetalle['lo_tenemos'] === 1);
         ?>
         <section class="pergamino">
-            <div class="barra-titulo-filtro" style="border-bottom: 2px solid #4a3219; padding-bottom: 10px; margin-bottom: 18px;">
+            <div class="barra-titulo-filtro" style="border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 18px;">
                 <h2 class="seccion-titulo" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
                     Editar Juego: «<?php echo h($nomJEdit); ?>»
                 </h2>

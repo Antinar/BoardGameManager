@@ -159,7 +159,7 @@ if ($filtroJuego !== '') {
 
     <!-- Clasificación y Filtro por Juego -->
     <section class="pergamino">
-        <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:14px; margin-bottom:16px; border-bottom:2px solid #4a3219; padding-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:14px; margin-bottom:16px; border-bottom:2px solid var(--line); padding-bottom:12px;">
             <div>
                 <h2 class="seccion-titulo" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
                     <?php if ($filtroJuego !== ''): ?>

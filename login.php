@@ -85,6 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div class="login-envoltorio">
     <div class="pergamino">
+        <img src="img/logo.png" alt="Logo La Taberna de las Gatitas Jugonas" class="login-logo">
         <h1 class="seccion-titulo" style="text-align:center;">La Taberna de las Gatitas Jugonas</h1>
 
         <?php if ($mensajeError !== ''): ?>

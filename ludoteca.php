@@ -217,7 +217,7 @@ if ($juegoDetalle) {
         $miComentario = $miRes ? (string)$miRes['comentario'] : '';
         ?>
         <section class="pergamino">
-            <div class="barra-titulo-filtro" style="border-bottom: 2px solid #4a3219; padding-bottom: 10px; margin-bottom: 18px;">
+            <div class="barra-titulo-filtro" style="border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 18px;">
                 <h2 class="seccion-titulo" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
                     <?php echo h($nombreJ); ?>
                 </h2>
@@ -231,7 +231,7 @@ if ($juegoDetalle) {
 
                 <!-- A la derecha de la foto: Jugadores, Propietarios, Descripción y Reglas -->
                 <div class="pergamino-secundario" style="margin-bottom: 0;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid #4a3219; padding-bottom:10px; margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:12px;">
                         <div>
                             <span class="etiqueta etiqueta-bronce" style="font-size:0.95rem;">
                                 Jugadores: <?php echo (int)$juegoDetalle['min_jugadores']; ?> a <?php echo (int)$juegoDetalle['max_jugadores']; ?>
@@ -256,7 +256,7 @@ if ($juegoDetalle) {
                     <div style="margin-bottom: 12px;">
                         <strong>Parroquianos que tienen «<?php echo h($nombreJ); ?>»:</strong>
                         <?php if (count($propietariosJuego) === 0): ?>
-                            <em style="color:#5a4634;">Nadie se ha anotado todavía como propietario de este ejemplar.</em>
+                            <em style="color:var(--ink-soft);">Nadie se ha anotado todavía como propietario de este ejemplar.</em>
                         <?php else: ?>
                             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
                                 <?php foreach ($propietariosJuego as $prop): ?>
@@ -273,7 +273,7 @@ if ($juegoDetalle) {
                         <?php if (!empty($juegoDetalle['descripcion'])): ?>
                             <div class="texto-largo-juego"><?php echo nl2br(h($juegoDetalle['descripcion'])); ?></div>
                         <?php else: ?>
-                            <p style="font-style:italic; color:#5a4634; margin-top:4px;">Sin descripción registrada.</p>
+                            <p style="font-style:italic; color:var(--ink-soft); margin-top:4px;">Sin descripción registrada.</p>
                         <?php endif; ?>
                     </div>
 
@@ -282,7 +282,7 @@ if ($juegoDetalle) {
                         <?php if (!empty($juegoDetalle['reglas'])): ?>
                             <div class="texto-largo-juego"><?php echo nl2br(h($juegoDetalle['reglas'])); ?></div>
                         <?php else: ?>
-                            <p style="font-style:italic; color:#5a4634; margin-top:4px;">Sin reglas especificadas.</p>
+                            <p style="font-style:italic; color:var(--ink-soft); margin-top:4px;">Sin reglas especificadas.</p>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -384,7 +384,7 @@ if ($juegoDetalle) {
                                         <?php if ($res['comentario'] !== null && trim((string)$res['comentario']) !== ''): ?>
                                             <?php echo nl2br(h($res['comentario'])); ?>
                                         <?php else: ?>
-                                            <span style="font-style:italic; color:#5a4632;">Sin comentario</span>
+                                            <span style="font-style:italic; color:var(--ink-soft);">Sin comentario</span>
                                         <?php endif; ?>
                                     </td>
                                 </tr>

@@ -155,7 +155,7 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
                                 </td>
                                 <td>
                                     <?php if (count($listaInt) === 0): ?>
-                                        <em style="color:#5a4634;">Nadie se ha apuntado todavía.</em>
+                                        <em style="color:var(--ink-soft);">Nadie se ha apuntado todavía.</em>
                                     <?php else: ?>
                                         <ul class="lista-interesados">
                                             <?php foreach ($listaInt as $intUser): ?>
