@@ -6,7 +6,16 @@ $mensajeExito = '';
 $mensajeError = '';
 $usuarioActual = $_SESSION['username'];
 
+// Validación CSRF común a toda petición POST: se comprueba antes de leer la acción o tocar la BD.
+$csrfOk = true;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrfOk = verificarTokenCsrf();
+    if (!$csrfOk) {
+        $mensajeError = MENSAJE_CSRF_INVALIDO;
+    }
+}
+
+if ($csrfOk && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = isset($_POST['accion']) ? $_POST['accion'] : '';
 
     // 1. Crear una nueva votación
@@ -211,6 +220,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
         </p>
         <form method="POST" action="votaciones.php" class="grid-tres-columnas" style="align-items:end;">
             <input type="hidden" name="accion" value="crear_votacion">
+            <?php echo campoCsrf(); ?>
 
             <div class="grupo-form" style="margin-bottom:0;">
                 <label for="titulo_votacion">Título o Motivo de la Votación:</label>
@@ -346,6 +356,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
                                 <h4 style="margin-bottom:8px; color:#23170f;">Editar Votación (El tipo de voto no se puede modificar)</h4>
                                 <form method="POST" action="votaciones.php" class="grid-tres-columnas" style="align-items:end;">
                                     <input type="hidden" name="accion" value="editar_votacion">
+                                    <?php echo campoCsrf(); ?>
                                     <input type="hidden" name="id_votacion" value="<?php echo $idV; ?>">
 
                                     <div class="grupo-form" style="margin-bottom:0;">
@@ -365,6 +376,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
 
                                 <form method="POST" action="votaciones.php" class="form-confirmar-borrado" data-confirm-msg="¿Cerrar ya esta votación? Ya no se podrá votar más y solo se verán los resultados durante 1 día." style="margin-top:10px; border-top:1px solid #4a3219; padding-top:8px; display:flex; justify-content:flex-end;">
                                     <input type="hidden" name="accion" value="cerrar_votacion">
+                                    <?php echo campoCsrf(); ?>
                                     <input type="hidden" name="id_votacion" value="<?php echo $idV; ?>">
                                     <button type="submit" class="btn btn-peligro btn-pequeno">Cerrar Votación Ahora</button>
                                 </form>
@@ -419,6 +431,7 @@ foreach ($stmtVotos->fetchAll() as $filaVoto) {
 
                             <form method="POST" action="votaciones.php">
                                 <input type="hidden" name="accion" value="emitir_voto">
+                                <?php echo campoCsrf(); ?>
                                 <input type="hidden" name="id_votacion" value="<?php echo $idV; ?>">
 
                                 <div class="grid-juegos-votacion" id="grid_vot_<?php echo $idV; ?>">

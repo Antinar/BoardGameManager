@@ -6,6 +6,15 @@ $mensajeExito = '';
 $mensajeError = '';
 $usuarioActual = $_SESSION['username'];
 
+// Validación CSRF única para ambos bloques POST de esta página.
+$csrfOk = true;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrfOk = verificarTokenCsrf();
+    if (!$csrfOk) {
+        $mensajeError = MENSAJE_CSRF_INVALIDO;
+    }
+}
+
 // Mapa oficial de calificaciones (0 a 10)
 $escalaCalificaciones = obtenerEscalaCalificaciones();
 
@@ -13,7 +22,7 @@ $escalaCalificaciones = obtenerEscalaCalificaciones();
 $juegoSeleccionadoNombre = isset($_GET['juego']) ? trim($_GET['juego']) : '';
 
 // Procesar guardado o actualización de reseña del usuario actual
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'guardar_resenya') {
+if ($csrfOk && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'guardar_resenya') {
     $nombreJuego = isset($_POST['NombreJuego']) ? trim($_POST['NombreJuego']) : '';
     $juegoSeleccionadoNombre = $nombreJuego; // Mantener en la vista de detalle del juego tras guardar
     $haJugado = (isset($_POST['ha_jugado']) && $_POST['ha_jugado'] === '1') ? 1 : 0;
@@ -59,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
 }
 
 // Procesar al momento el botón de "Yo tengo este juego" / "Ya no lo tengo"
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'toggle_tenencia_propia') {
+if ($csrfOk && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'toggle_tenencia_propia') {
     $nombreJuego = isset($_POST['NombreJuego']) ? trim($_POST['NombreJuego']) : '';
     $juegoSeleccionadoNombre = $nombreJuego;
 
@@ -240,6 +249,7 @@ if ($juegoDetalle) {
 
                         <form method="POST" action="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>" style="margin:0;">
                             <input type="hidden" name="accion" value="toggle_tenencia_propia">
+                            <?php echo campoCsrf(); ?>
                             <input type="hidden" name="NombreJuego" value="<?php echo h($nombreJ); ?>">
                             <?php if ($yoLoTengo): ?>
                                 <button type="submit" class="btn btn-peligro btn-pequeno">
@@ -292,6 +302,7 @@ if ($juegoDetalle) {
             <form method="POST" action="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>" class="pergamino-secundario form-ludoteca" style="margin-top: 18px;">
                 <h3 class="seccion-subtitulo">Tu Valoración Personal</h3>
                 <input type="hidden" name="accion" value="guardar_resenya">
+                <?php echo campoCsrf(); ?>
                 <input type="hidden" name="NombreJuego" value="<?php echo h($nombreJ); ?>">
 
                 <div class="grupo-form">

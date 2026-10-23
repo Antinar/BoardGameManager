@@ -5,7 +5,16 @@ requerirAdmin($pdo);
 $mensajeExito = '';
 $mensajeError = '';
 
+// Validación CSRF común a toda petición POST: se comprueba antes de leer la entidad/operación o tocar la BD.
+$csrfOk = true;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrfOk = verificarTokenCsrf();
+    if (!$csrfOk) {
+        $mensajeError = MENSAJE_CSRF_INVALIDO;
+    }
+}
+
+if ($csrfOk && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $entidad = isset($_POST['entidad']) ? $_POST['entidad'] : '';
     $operacion = isset($_POST['operacion']) ? $_POST['operacion'] : '';
 
@@ -20,11 +29,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $nombrePersona = trim($_POST['NombrePersona']);
                 $email = isset($_POST['email']) ? trim($_POST['email']) : '';
                 $emailGuardar = ($email !== '') ? $email : null;
-                $contrasenya = (string)$_POST['contrasenya'];
+                $nuevaContrasenya = isset($_POST['nueva_contrasenya']) ? trim((string)$_POST['nueva_contrasenya']) : '';
                 $rol = ($_POST['rol'] === 'admin') ? 'admin' : 'jugador';
 
-                $stmt = $pdo->prepare("UPDATE Persona SET username = ?, NombrePersona = ?, email = ?, contrasenya = ?, rol = ?, inscrito_leaderboard = 1 WHERE username = ?");
-                $stmt->execute([$nuevoUsername, $nombrePersona, $emailGuardar, $contrasenya, $rol, $originalUsername]);
+                if ($nuevaContrasenya === '') {
+                    // Sin contraseña nueva: el hash actual se conserva intacto.
+                    $stmt = $pdo->prepare("UPDATE Persona SET username = ?, NombrePersona = ?, email = ?, rol = ?, inscrito_leaderboard = 1 WHERE username = ?");
+                    $stmt->execute([$nuevoUsername, $nombrePersona, $emailGuardar, $rol, $originalUsername]);
+                } else {
+                    $hashNueva = password_hash($nuevaContrasenya, PASSWORD_DEFAULT);
+                    if ($hashNueva === false) {
+                        throw new Exception('No se pudo procesar la nueva contraseña. Inténtalo de nuevo.');
+                    }
+                    $stmt = $pdo->prepare("UPDATE Persona SET username = ?, NombrePersona = ?, email = ?, contrasenya = ?, rol = ?, inscrito_leaderboard = 1 WHERE username = ?");
+                    $stmt->execute([$nuevoUsername, $nombrePersona, $emailGuardar, $hashNueva, $rol, $originalUsername]);
+                }
 
                 if ($_SESSION['username'] === $originalUsername) {
                     $_SESSION['username'] = $nuevoUsername;
@@ -339,6 +358,7 @@ if ($juegoEditarNombre !== '') {
                 </div>
 
                 <form method="POST" action="admin.php" enctype="multipart/form-data" class="pergamino-secundario form-ludoteca" data-form-juego-seguro>
+                    <?php echo campoCsrf(); ?>
                     <input type="hidden" name="entidad" value="juego">
                     <input type="hidden" name="operacion" value="editar">
                     <input type="hidden" name="original_NombreJuego" value="<?php echo h($nomJEdit); ?>">
@@ -429,7 +449,7 @@ if ($juegoEditarNombre !== '') {
                         <th>Username</th>
                         <th>Nombre y Apellidos</th>
                         <th>Email</th>
-                        <th>Contraseña</th>
+                        <th>Nueva contraseña</th>
                         <th>Rol</th>
                         <th style="width:190px;">Acciones</th>
                     </tr>
@@ -440,6 +460,7 @@ if ($juegoEditarNombre !== '') {
                         <tr>
                             <td>
                                 <form id="<?php echo $formIdP; ?>" method="POST" action="admin.php">
+                                    <?php echo campoCsrf(); ?>
                                     <input type="hidden" name="entidad" value="persona">
                                     <input type="hidden" name="operacion" value="editar">
                                     <input type="hidden" name="original_username" value="<?php echo h($p['username']); ?>">
@@ -453,7 +474,7 @@ if ($juegoEditarNombre !== '') {
                                 <input type="email" form="<?php echo $formIdP; ?>" name="email" value="<?php echo h((string)$p['email']); ?>" class="input-taberna" maxlength="150" placeholder="Sin email">
                             </td>
                             <td>
-                                <input type="text" form="<?php echo $formIdP; ?>" name="contrasenya" value="<?php echo h($p['contrasenya']); ?>" class="input-taberna" required>
+                                <input type="password" form="<?php echo $formIdP; ?>" name="nueva_contrasenya" placeholder="(Sin cambios)" class="input-taberna" autocomplete="new-password">
                             </td>
                             <td>
                                 <select form="<?php echo $formIdP; ?>" name="rol" class="select-taberna">
@@ -465,6 +486,7 @@ if ($juegoEditarNombre !== '') {
                                 <div class="acciones-admin-celda">
                                     <button type="submit" form="<?php echo $formIdP; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
                                     <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar al usuario <?php echo h($p['username']); ?>?">
+                                        <?php echo campoCsrf(); ?>
                                         <input type="hidden" name="entidad" value="persona">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="username" value="<?php echo h($p['username']); ?>">
@@ -518,6 +540,7 @@ if ($juegoEditarNombre !== '') {
                                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                     <a href="admin.php?editar_juego=<?php echo urlencode($nomJ); ?>" class="btn btn-bronce btn-pequeno">Editar</a>
                                     <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar el juego <?php echo h($nomJ); ?> y sus votos/victorias?">
+                                        <?php echo campoCsrf(); ?>
                                         <input type="hidden" name="entidad" value="juego">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="NombreJuego" value="<?php echo h($nomJ); ?>">
@@ -536,6 +559,7 @@ if ($juegoEditarNombre !== '') {
     <section class="pergamino">
         <h3 class="seccion-titulo">3. Interesados en Juegos (<?php echo count($relacionesPJ); ?>)</h3>
         <form method="POST" action="admin.php" class="pergamino-secundario" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+            <?php echo campoCsrf(); ?>
             <input type="hidden" name="entidad" value="persona_juego">
             <input type="hidden" name="operacion" value="crear">
             <div>
@@ -572,6 +596,7 @@ if ($juegoEditarNombre !== '') {
                         <tr>
                             <td>
                                 <form id="<?php echo $formIdPJ; ?>" method="POST" action="admin.php">
+                                    <?php echo campoCsrf(); ?>
                                     <input type="hidden" name="entidad" value="persona_juego">
                                     <input type="hidden" name="operacion" value="editar">
                                     <input type="hidden" name="orig_username" value="<?php echo h($rel['username']); ?>">
@@ -598,6 +623,7 @@ if ($juegoEditarNombre !== '') {
                                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                     <button type="submit" form="<?php echo $formIdPJ; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
                                     <form method="POST" action="admin.php" class="form-confirmar-borrado">
+                                        <?php echo campoCsrf(); ?>
                                         <input type="hidden" name="entidad" value="persona_juego">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="username" value="<?php echo h($rel['username']); ?>">
@@ -632,6 +658,7 @@ if ($juegoEditarNombre !== '') {
                         <tr>
                             <td>
                                 <form id="<?php echo $formIdV; ?>" method="POST" action="admin.php">
+                                    <?php echo campoCsrf(); ?>
                                     <input type="hidden" name="entidad" value="victoria">
                                     <input type="hidden" name="operacion" value="editar">
                                     <input type="hidden" name="id_victoria" value="<?php echo (int)$v['id_victoria']; ?>">
@@ -660,6 +687,7 @@ if ($juegoEditarNombre !== '') {
                                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                     <button type="submit" form="<?php echo $formIdV; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
                                     <form method="POST" action="admin.php" class="form-confirmar-borrado">
+                                        <?php echo campoCsrf(); ?>
                                         <input type="hidden" name="entidad" value="victoria">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="id_victoria" value="<?php echo (int)$v['id_victoria']; ?>">
@@ -694,6 +722,7 @@ if ($juegoEditarNombre !== '') {
                         <tr>
                             <td>
                                 <form id="<?php echo $formIdVot; ?>" method="POST" action="admin.php">
+                                    <?php echo campoCsrf(); ?>
                                     <input type="hidden" name="entidad" value="votacion">
                                     <input type="hidden" name="operacion" value="editar">
                                     <input type="hidden" name="id_votacion" value="<?php echo (int)$vot['id_votacion']; ?>">
@@ -722,6 +751,7 @@ if ($juegoEditarNombre !== '') {
                                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                     <button type="submit" form="<?php echo $formIdVot; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
                                     <form method="POST" action="admin.php" class="form-confirmar-borrado">
+                                        <?php echo campoCsrf(); ?>
                                         <input type="hidden" name="entidad" value="votacion">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="id_votacion" value="<?php echo (int)$vot['id_votacion']; ?>">
@@ -755,6 +785,7 @@ if ($juegoEditarNombre !== '') {
                         <tr>
                             <td>
                                 <form id="<?php echo $formIdVt; ?>" method="POST" action="admin.php">
+                                    <?php echo campoCsrf(); ?>
                                     <input type="hidden" name="entidad" value="voto">
                                     <input type="hidden" name="operacion" value="editar">
                                     <input type="hidden" name="id_voto" value="<?php echo (int)$vt['id_voto']; ?>">
@@ -789,6 +820,7 @@ if ($juegoEditarNombre !== '') {
                                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                     <button type="submit" form="<?php echo $formIdVt; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
                                     <form method="POST" action="admin.php" class="form-confirmar-borrado">
+                                        <?php echo campoCsrf(); ?>
                                         <input type="hidden" name="entidad" value="voto">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="id_voto" value="<?php echo (int)$vt['id_voto']; ?>">
@@ -808,6 +840,7 @@ if ($juegoEditarNombre !== '') {
         <h3 class="seccion-titulo">7. Reseñas de la Ludoteca (<?php echo count($resenyas); ?>)</h3>
 
         <form method="POST" action="admin.php" class="pergamino-secundario" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;">
+            <?php echo campoCsrf(); ?>
             <input type="hidden" name="entidad" value="resenya">
             <input type="hidden" name="operacion" value="crear">
 
@@ -873,6 +906,7 @@ if ($juegoEditarNombre !== '') {
                         <tr>
                             <td>
                                 <form id="<?php echo $formIdR; ?>" method="POST" action="admin.php">
+                                    <?php echo campoCsrf(); ?>
                                     <input type="hidden" name="entidad" value="resenya">
                                     <input type="hidden" name="operacion" value="editar">
                                     <input type="hidden" name="id_resenya" value="<?php echo (int)$r['id_resenya']; ?>">
@@ -917,6 +951,7 @@ if ($juegoEditarNombre !== '') {
                                 <div class="acciones-admin-celda">
                                     <button type="submit" form="<?php echo $formIdR; ?>" class="btn btn-exito btn-pequeno">Guardar</button>
                                     <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar esta reseña?">
+                                        <?php echo campoCsrf(); ?>
                                         <input type="hidden" name="entidad" value="resenya">
                                         <input type="hidden" name="operacion" value="eliminar">
                                         <input type="hidden" name="id_resenya" value="<?php echo (int)$r['id_resenya']; ?>">

@@ -1,6 +1,27 @@
 <?php
 date_default_timezone_set('Europe/Madrid');
-session_start();
+
+// Configuración segura de la sesión (debe aplicarse antes de session_start()).
+if (session_status() === PHP_SESSION_NONE) {
+    $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
+    $proto = strtolower(trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0]));
+    $puerto = (string)($_SERVER['SERVER_PORT'] ?? '');
+    $esHttps = in_array($https, ['on', '1', 'true'], true)
+        || $proto === 'https'
+        || $puerto === '443';
+
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'domain'   => '',
+        'secure'   => $esHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+
+    ini_set('session.use_strict_mode', '1');
+    session_start();
+}
 
 // Cargar configuración generada por GitHub Actions (BD y SMTP)
 if (file_exists(__DIR__ . '/smtp_config.php')) {
@@ -39,6 +60,40 @@ try {
  */
 function h($cadena) {
     return htmlspecialchars((string)$cadena, ENT_QUOTES, 'UTF-8');
+}
+
+// Mensaje común para peticiones bloqueadas por CSRF.
+define('MENSAJE_CSRF_INVALIDO', 'Acción bloqueada: el sello de seguridad de la petición no es válido o ha caducado.');
+
+/**
+ * Devuelve el token CSRF de la sesión, generándolo la primera vez.
+ * No se rota en cada petición para no invalidar otras pestañas abiertas.
+ */
+function generarTokenCsrf() {
+    if (!isset($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token']) || $_SESSION['csrf_token'] === '') {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Campo oculto listo para insertar en un formulario.
+ */
+function campoCsrf() {
+    return '<input type="hidden" name="csrf_token" value="' . h(generarTokenCsrf()) . '">';
+}
+
+/**
+ * Valida el token CSRF recibido por POST contra el almacenado en sesión.
+ */
+function verificarTokenCsrf() {
+    if (!isset($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token']) || $_SESSION['csrf_token'] === '') {
+        return false;
+    }
+    if (!isset($_POST['csrf_token']) || !is_string($_POST['csrf_token']) || $_POST['csrf_token'] === '') {
+        return false;
+    }
+    return hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']);
 }
 
 /**

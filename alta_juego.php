@@ -5,11 +5,20 @@ requerirLogin($pdo);
 $mensajeExito = '';
 $mensajeError = '';
 
+// Validación CSRF común a toda petición POST: se comprueba antes de leer la acción o tocar la BD.
+$csrfOk = true;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrfOk = verificarTokenCsrf();
+    if (!$csrfOk) {
+        $mensajeError = MENSAJE_CSRF_INVALIDO;
+    }
+}
+
 // Obtener todos los usuarios para el selector multiselección de propietarios
 $stmtPersonas = $pdo->query("SELECT username, NombrePersona FROM Persona ORDER BY NombrePersona ASC");
 $listaPersonas = $stmtPersonas->fetchAll();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'crear_juego') {
+if ($csrfOk && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'crear_juego') {
     $nombreJuego = isset($_POST['NombreJuego']) ? trim($_POST['NombreJuego']) : '';
     $loTenemos = (isset($_POST['lo_tenemos']) && $_POST['lo_tenemos'] === '1') ? 1 : 0;
     $minJugadores = isset($_POST['min_jugadores']) ? (int)$_POST['min_jugadores'] : 0;
@@ -100,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
 
         <form method="POST" action="alta_juego.php" enctype="multipart/form-data" data-form-juego-seguro>
             <input type="hidden" name="accion" value="crear_juego">
+            <?php echo campoCsrf(); ?>
 
             <div class="grupo-form">
                 <label for="NombreJuego">Nombre del Juego:</label>

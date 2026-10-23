@@ -9,15 +9,19 @@ $usuarioActual = $_SESSION['username'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = isset($_POST['accion']) ? $_POST['accion'] : '';
 
+    if (!verificarTokenCsrf()) {
+        $mensajeError = MENSAJE_CSRF_INVALIDO;
+    }
+
     // 1. Actualizar datos del perfil
-    if ($accion === 'editar_perfil') {
+    elseif ($accion === 'editar_perfil') {
         $nuevoUsername = isset($_POST['username']) ? trim($_POST['username']) : '';
         $nombrePersona = isset($_POST['NombrePersona']) ? trim($_POST['NombrePersona']) : '';
         $email = isset($_POST['email']) ? trim($_POST['email']) : '';
-        $contrasenya = isset($_POST['contrasenya']) ? trim((string)$_POST['contrasenya']) : '';
+        $nuevaContrasenya = isset($_POST['nueva_contrasenya']) ? trim((string)$_POST['nueva_contrasenya']) : '';
 
-        if ($nuevoUsername === '' || $nombrePersona === '' || $contrasenya === '') {
-            $mensajeError = 'El nombre de usuario, tu nombre y la contraseña no pueden quedar vacíos.';
+        if ($nuevoUsername === '' || $nombrePersona === '') {
+            $mensajeError = 'El nombre de usuario y tu nombre no pueden quedar vacíos.';
         } elseif (mb_strlen($nuevoUsername) > 50 || mb_strlen($nombrePersona) > 120 || mb_strlen($email) > 150) {
             $mensajeError = 'Alguno de los campos supera la longitud máxima permitida.';
         } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -34,19 +38,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($mensajeError === '') {
                 $emailGuardar = ($email !== '') ? $email : null;
-                $stmtUpd = $pdo->prepare("
-                    UPDATE Persona
-                    SET username = ?, NombrePersona = ?, email = ?, contrasenya = ?
-                    WHERE username = ?
-                ");
-                $stmtUpd->execute([$nuevoUsername, $nombrePersona, $emailGuardar, $contrasenya, $usuarioActual]);
 
-                $_SESSION['username']      = $nuevoUsername;
-                $_SESSION['NombrePersona'] = $nombrePersona;
-                $_SESSION['email']         = $emailGuardar;
-                $usuarioActual             = $nuevoUsername;
+                if ($nuevaContrasenya !== '') {
+                    $hashNueva = password_hash($nuevaContrasenya, PASSWORD_DEFAULT);
 
-                $mensajeExito = 'Los datos de tu perfil se han actualizado correctamente.';
+                    if ($hashNueva === false) {
+                        $mensajeError = 'No se pudo actualizar la contraseña. Inténtalo de nuevo más tarde.';
+                    } else {
+                        $stmtUpd = $pdo->prepare("
+                            UPDATE Persona
+                            SET username = ?, NombrePersona = ?, email = ?, contrasenya = ?
+                            WHERE username = ?
+                        ");
+                        $stmtUpd->execute([$nuevoUsername, $nombrePersona, $emailGuardar, $hashNueva, $usuarioActual]);
+                    }
+                } else {
+                    $stmtUpd = $pdo->prepare("
+                        UPDATE Persona
+                        SET username = ?, NombrePersona = ?, email = ?
+                        WHERE username = ?
+                    ");
+                    $stmtUpd->execute([$nuevoUsername, $nombrePersona, $emailGuardar, $usuarioActual]);
+                }
+
+                if ($mensajeError === '') {
+                    $_SESSION['username']      = $nuevoUsername;
+                    $_SESSION['NombrePersona'] = $nombrePersona;
+                    $_SESSION['email']         = $emailGuardar;
+                    $usuarioActual             = $nuevoUsername;
+
+                    $mensajeExito = 'Los datos de tu perfil se han actualizado correctamente.';
+                }
             }
         }
     }
@@ -68,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Cargar datos actuales del usuario desde la BD
-$stmtDatos = $pdo->prepare("SELECT username, NombrePersona, email, contrasenya, rol FROM Persona WHERE username = ?");
+$stmtDatos = $pdo->prepare("SELECT username, NombrePersona, email, rol FROM Persona WHERE username = ?");
 $stmtDatos->execute([$usuarioActual]);
 $misDatos = $stmtDatos->fetch();
 ?>
@@ -102,6 +124,7 @@ $misDatos = $stmtDatos->fetch();
 
         <form method="POST" action="perfil.php">
             <input type="hidden" name="accion" value="editar_perfil">
+            <?php echo campoCsrf(); ?>
 
             <div class="grupo-form">
                 <label for="perfil_username">Nombre de Usuario (username):</label>
@@ -119,8 +142,8 @@ $misDatos = $stmtDatos->fetch();
             </div>
 
             <div class="grupo-form">
-                <label for="perfil_contrasenya">Contraseña:</label>
-                <input type="text" id="perfil_contrasenya" name="contrasenya" class="input-taberna" required value="<?php echo h($misDatos['contrasenya']); ?>">
+                <label for="perfil_nueva_contrasenya">Contraseña:</label>
+                <input type="password" id="perfil_nueva_contrasenya" name="nueva_contrasenya" class="input-taberna" value="" placeholder="(Sin cambios)" autocomplete="new-password">
             </div>
 
             <div class="grupo-form">
@@ -147,6 +170,7 @@ $misDatos = $stmtDatos->fetch();
         <?php else: ?>
             <form method="POST" action="perfil.php" class="form-confirmar-borrado" data-confirm-msg="¿Estás completamente seguro de que deseas eliminar tu cuenta de forma permanente? Esta acción no se puede deshacer.">
                 <input type="hidden" name="accion" value="eliminar_cuenta">
+                <?php echo campoCsrf(); ?>
                 <button type="submit" class="btn btn-peligro" style="width:100%;">Eliminar mi Cuenta Permanentemente</button>
             </form>
         <?php endif; ?>

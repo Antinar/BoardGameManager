@@ -6,7 +6,16 @@ $mensajeExito = '';
 $mensajeError = '';
 $usuarioActual = $_SESSION['username'];
 
+// Validación CSRF común a toda petición POST: se comprueba antes de leer la acción o tocar la BD.
+$csrfOk = true;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrfOk = verificarTokenCsrf();
+    if (!$csrfOk) {
+        $mensajeError = MENSAJE_CSRF_INVALIDO;
+    }
+}
+
+if ($csrfOk && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = isset($_POST['accion']) ? $_POST['accion'] : '';
 
     // 2. Registrar ganador de una partida (Solo de juegos que YA tenemos)
@@ -127,6 +136,7 @@ if ($filtroJuego !== '') {
         <?php else: ?>
             <form method="POST" action="leaderboard.php" class="grid-tres-columnas" style="align-items:end;">
                 <input type="hidden" name="accion" value="registrar_victoria">
+                <?php echo campoCsrf(); ?>
 
                 <div class="grupo-form" style="margin-bottom:0;">
                     <label for="select_juego_victoria">Juego:</label>

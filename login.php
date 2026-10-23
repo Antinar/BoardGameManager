@@ -12,8 +12,11 @@ $pestanaActiva = 'login';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = isset($_POST['accion']) ? $_POST['accion'] : '';
+    $pestanaActiva = ($accion === 'registro') ? 'registro' : 'login';
 
-    if ($accion === 'login') {
+    if (!verificarTokenCsrf()) {
+        $mensajeError = MENSAJE_CSRF_INVALIDO;
+    } elseif ($accion === 'login') {
         $pestanaActiva = 'login';
         $username = isset($_POST['username']) ? trim($_POST['username']) : '';
         $contrasenya = isset($_POST['contrasenya']) ? trim((string)$_POST['contrasenya']) : '';
@@ -25,7 +28,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$username]);
             $usuario = $stmt->fetch();
 
-            if ($usuario && $usuario['contrasenya'] === $contrasenya) {
+            $loginCorrecto = false;
+
+            if ($usuario) {
+                $hashActual = (string)$usuario['contrasenya'];
+                $coincideHash = password_verify($contrasenya, $hashActual);
+                $coincideTextoPlano = false;
+                $infoHashActual = password_get_info($hashActual);
+
+                // Se evita pass-the-hash: el fallback de texto plano solo se permite
+                // si lo almacenado no es un hash reconocido (bcrypt/argon/etc.).
+                if (!$coincideHash && $hashActual !== '' && $infoHashActual['algoName'] === 'unknown') {
+                    $coincideTextoPlano = hash_equals($hashActual, $contrasenya);
+                }
+
+                $loginCorrecto = $coincideHash || $coincideTextoPlano;
+
+                if ($loginCorrecto) {
+                    // Migración progresiva: solo se rehashea un hash válido verificado
+                    // o una contraseña heredada en texto plano.
+                    $necesitaRehash = $coincideTextoPlano
+                        || ($coincideHash && password_needs_rehash($hashActual, PASSWORD_DEFAULT));
+
+                    if ($necesitaRehash) {
+                        $nuevoHash = password_hash($contrasenya, PASSWORD_DEFAULT);
+                        if ($nuevoHash !== false) {
+                            try {
+                                $stmtUpd = $pdo->prepare("UPDATE Persona SET contrasenya = ? WHERE username = ?");
+                                $stmtUpd->execute([$nuevoHash, $usuario['username']]);
+                            } catch (Throwable $e) {
+                                // El login no debe fallar si la migración del hash no se puede guardar.
+                                error_log('No se pudo migrar la contraseña a hash: ' . $e->getMessage());
+                            }
+                        }
+                    }
+                }
+            }
+
+            if ($loginCorrecto) {
+                session_regenerate_id(true);
                 $_SESSION['username']             = $usuario['username'];
                 $_SESSION['NombrePersona']        = $usuario['NombrePersona'];
                 $_SESSION['rol']                  = $usuario['rol'];
@@ -41,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = isset($_POST['username']) ? trim($_POST['username']) : '';
         $nombrePersona = isset($_POST['NombrePersona']) ? trim($_POST['NombrePersona']) : '';
         $email = isset($_POST['email']) ? trim($_POST['email']) : '';
-        $contrasenya = isset($_POST['contrasenya']) ? (string)trim($_POST['contrasenya']) : '';
+        $contrasenya = isset($_POST['contrasenya']) ? trim((string)$_POST['contrasenya']) : '';
 
         if ($username === '' || $nombrePersona === '' || $contrasenya === '') {
             $mensajeError = 'El usuario, nombre y contraseña son obligatorios para inscribirse en el libro de la taberna.';
@@ -56,18 +97,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ((int)$stmtCheck->fetchColumn() > 0) {
                 $mensajeError = 'Ese nombre de usuario ya pertenece a otro parroquiano. Elige otro.';
             } else {
-                $emailGuardar = ($email !== '') ? $email : null;
-                $stmtIns = $pdo->prepare("INSERT INTO Persona (username, NombrePersona, email, contrasenya, rol, inscrito_leaderboard) VALUES (?, ?, ?, ?, 'jugador', 1)");
-                $stmtIns->execute([$username, $nombrePersona, $emailGuardar, $contrasenya]);
+                $hash = password_hash($contrasenya, PASSWORD_DEFAULT);
 
-                $_SESSION['username']             = $username;
-                $_SESSION['NombrePersona']        = $nombrePersona;
-                $_SESSION['email']                = $emailGuardar;
-                $_SESSION['rol']                  = 'jugador';
-                $_SESSION['inscrito_leaderboard'] = 1;
+                if ($hash === false) {
+                    $mensajeError = 'No se pudo completar el registro en este momento. Inténtalo de nuevo más tarde.';
+                } else {
+                    $emailGuardar = ($email !== '') ? $email : null;
+                    $stmtIns = $pdo->prepare("INSERT INTO Persona (username, NombrePersona, email, contrasenya, rol, inscrito_leaderboard) VALUES (?, ?, ?, ?, 'jugador', 1)");
+                    $stmtIns->execute([$username, $nombrePersona, $emailGuardar, $hash]);
 
-                header('Location: index.php');
-                exit;
+                    session_regenerate_id(true);
+                    $_SESSION['username']             = $username;
+                    $_SESSION['NombrePersona']        = $nombrePersona;
+                    $_SESSION['email']                = $emailGuardar;
+                    $_SESSION['rol']                  = 'jugador';
+                    $_SESSION['inscrito_leaderboard'] = 1;
+
+                    header('Location: index.php');
+                    exit;
+                }
             }
         }
     }
@@ -114,6 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div id="panel-login" data-tab-content-group="auth" class="<?php echo $pestanaActiva === 'login' ? '' : 'panel-oculto'; ?>">
             <form method="POST" action="login.php">
                 <input type="hidden" name="accion" value="login">
+                <?php echo campoCsrf(); ?>
                 <div class="grupo-form">
                     <label for="login_username">Nombre de Usuario (username):</label>
                     <input type="text" id="login_username" name="username" class="input-taberna" required maxlength="50">
@@ -130,6 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div id="panel-registro" data-tab-content-group="auth" class="<?php echo $pestanaActiva === 'registro' ? '' : 'panel-oculto'; ?>">
             <form method="POST" action="login.php">
                 <input type="hidden" name="accion" value="registro">
+                <?php echo campoCsrf(); ?>
                 <div class="grupo-form">
                     <label for="reg_username">Nombre de Usuario (único):</label>
                     <input type="text" id="reg_username" name="username" class="input-taberna" required maxlength="50">
@@ -146,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="grupo-form">
                     <label for="reg_contrasenya">Contraseña (sin restricciones):</label>
-                    <input type="text" id="reg_contrasenya" name="contrasenya" class="input-taberna" required>
+                    <input type="password" id="reg_contrasenya" name="contrasenya" class="input-taberna" required>
                 </div>
                 <button type="submit" class="btn btn-exito" style="width:100%;">Firmar Alta y Entrar</button>
             </form>

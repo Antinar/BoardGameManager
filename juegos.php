@@ -6,7 +6,16 @@ $mensajeExito = '';
 $mensajeError = '';
 $usuarioActual = $_SESSION['username'];
 
+// Validación CSRF común a toda petición POST: se comprueba antes de leer la acción o tocar la BD.
+$csrfOk = true;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrfOk = verificarTokenCsrf();
+    if (!$csrfOk) {
+        $mensajeError = MENSAJE_CSRF_INVALIDO;
+    }
+}
+
+if ($csrfOk && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = isset($_POST['accion']) ? $_POST['accion'] : '';
 
     // 2. Apuntarse o desapuntarse como interesado en un juego que NO tenemos
@@ -170,6 +179,7 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
                                 <td>
                                     <form method="POST" action="juegos.php">
                                         <input type="hidden" name="accion" value="toggle_interes">
+                                        <?php echo campoCsrf(); ?>
                                         <input type="hidden" name="NombreJuego" value="<?php echo h($nombreJ); ?>">
                                         <?php if ($estoyApuntado): ?>
                                             <button type="submit" class="btn btn-peligro btn-pequeno" style="width:100%;">
@@ -185,6 +195,7 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
                                 <td>
                                     <form method="POST" action="juegos.php">
                                         <input type="hidden" name="accion" value="cambiar_estado_tenencia">
+                                        <?php echo campoCsrf(); ?>
                                         <input type="hidden" name="NombreJuego" value="<?php echo h($nombreJ); ?>">
                                         <input type="hidden" name="nuevo_estado" value="1">
                                         <button type="submit" class="btn btn-bronce btn-pequeno" style="width:100%;">
@@ -210,6 +221,7 @@ $juegosSiTenemos = $stmtSiTenemos->fetchAll();
         <?php if (count($juegosSiTenemos) > 0): ?>
             <form method="POST" action="juegos.php" class="form-inline-movil" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <input type="hidden" name="accion" value="cambiar_estado_tenencia">
+                <?php echo campoCsrf(); ?>
                 <input type="hidden" name="nuevo_estado" value="0">
                 <label for="juego_revertir" style="font-weight:bold;">Pasar a «No lo tenemos»:</label>
                 <select id="juego_revertir" name="NombreJuego" class="select-taberna" style="width:auto;" required>
