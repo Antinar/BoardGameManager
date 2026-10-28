@@ -26,6 +26,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // 1.1. Rotación suave de las imágenes de fondo del header (cada 2 segundos)
+    var capasFondoHeader = document.querySelectorAll('.header-fondo-img');
+    if (capasFondoHeader.length > 1) {
+        var movimientoReducidoHeader = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!movimientoReducidoHeader) {
+            var indiceFondoHeader = 0;
+            window.setInterval(function () {
+                if (document.hidden) return;
+                capasFondoHeader[indiceFondoHeader].classList.remove('activa');
+                indiceFondoHeader = (indiceFondoHeader + 1) % capasFondoHeader.length;
+                capasFondoHeader[indiceFondoHeader].classList.add('activa');
+            }, 2000);
+        }
+    }
+
     // 2. Previsualización de imagen antes de subirla
     var inputsImagen = document.querySelectorAll('input[type="file"][data-preview-target]');
     inputsImagen.forEach(function (input) {
@@ -89,7 +104,61 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-    // 5. Desplegar / Contraer bloques de votación y panel de edición del creador
+    // 5. Desplegar / Contraer bloques de votación (con animación) y panel de edición del creador
+    var prefiereMovimientoReducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function alternarVotacion(bloque) {
+        var cuerpo = bloque.querySelector('.votacion-cuerpo');
+        if (!cuerpo || prefiereMovimientoReducido) {
+            bloque.classList.toggle('contraida');
+            return;
+        }
+        if (bloque.getAttribute('data-animando') === '1') return;
+        bloque.setAttribute('data-animando', '1');
+
+        var estabaContraida = bloque.classList.contains('contraida');
+        var alturaInicial = estabaContraida ? 0 : cuerpo.scrollHeight;
+
+        cuerpo.style.overflow = 'hidden';
+        cuerpo.style.height = alturaInicial + 'px';
+        cuerpo.style.opacity = estabaContraida ? '0' : '1';
+        cuerpo.style.transition = 'height 0.32s ease, opacity 0.26s ease';
+
+        if (estabaContraida) {
+            bloque.classList.remove('contraida');
+        }
+
+        // Forzar un reflow para que el navegador registre el punto de partida.
+        void cuerpo.offsetHeight;
+
+        var alturaFinal = estabaContraida ? cuerpo.scrollHeight : 0;
+        cuerpo.style.height = alturaFinal + 'px';
+        cuerpo.style.opacity = estabaContraida ? '1' : '0';
+
+        var terminado = false;
+        function finalizarAnimacion() {
+            if (terminado) return;
+            terminado = true;
+            cuerpo.removeEventListener('transitionend', alTerminarTransicion);
+            if (!estabaContraida) {
+                bloque.classList.add('contraida');
+            }
+            cuerpo.style.height = '';
+            cuerpo.style.opacity = '';
+            cuerpo.style.overflow = '';
+            cuerpo.style.transition = '';
+            bloque.removeAttribute('data-animando');
+        }
+        function alTerminarTransicion(ev) {
+            if (ev.target === cuerpo && ev.propertyName === 'height') {
+                finalizarAnimacion();
+            }
+        }
+        cuerpo.addEventListener('transitionend', alTerminarTransicion);
+        // Respaldo por si transitionend no se dispara.
+        window.setTimeout(finalizarAnimacion, 500);
+    }
+
     var cabecerasVotacion = document.querySelectorAll('[data-toggle-votacion]');
     cabecerasVotacion.forEach(function (cabecera) {
         cabecera.addEventListener('click', function (e) {
@@ -98,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             var bloque = cabecera.closest('.votacion-bloque');
             if (!bloque) return;
-            bloque.classList.toggle('contraida');
+            alternarVotacion(bloque);
         });
     });
 
@@ -112,8 +181,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Si la votación estaba contraída al pulsar Editar, la desplegamos y abrimos el panel
             if (bloque && bloque.classList.contains('contraida')) {
-                bloque.classList.remove('contraida');
                 if (panel) panel.classList.remove('panel-oculto');
+                alternarVotacion(bloque);
                 return;
             }
             if (panel) {
@@ -257,6 +326,75 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (selectOrdenLudoteca) {
             selectOrdenLudoteca.addEventListener('change', actualizarVistaLudoteca);
+        }
+    }
+
+    // 7.B. Buscador, filtro "Mis juegos deseados" y ordenación en Juegos Deseados (juegos.php)
+    var contenedorDeseados = document.getElementById('contenedor-deseados');
+    var inputBuscarDeseados = document.getElementById('buscador-deseados');
+    var selectInteresDeseados = document.getElementById('filtro-interes-deseados');
+    var selectOrdenDeseados = document.getElementById('orden-deseados');
+    var msgSinResultadosDeseados = document.getElementById('deseados-sin-resultados');
+
+    if (contenedorDeseados) {
+        var tarjetasDeseados = Array.prototype.slice.call(contenedorDeseados.querySelectorAll('.tarjeta-ludoteca'));
+
+        function actualizarVistaDeseados() {
+            var texto = inputBuscarDeseados ? inputBuscarDeseados.value.toLowerCase().trim() : '';
+            var interesFiltro = selectInteresDeseados ? selectInteresDeseados.value : 'todos';
+            var criterioOrden = selectOrdenDeseados ? selectOrdenDeseados.value : 'alfabetico';
+
+            // 1. Ordenar tarjetas según el criterio elegido
+            tarjetasDeseados.sort(function (a, b) {
+                var nombreA = (a.getAttribute('data-nombre') || '').toLowerCase();
+                var nombreB = (b.getAttribute('data-nombre') || '').toLowerCase();
+
+                if (criterioOrden === 'interesados') {
+                    var intA = parseInt(a.getAttribute('data-num-interesados') || '0', 10);
+                    var intB = parseInt(b.getAttribute('data-num-interesados') || '0', 10);
+                    if (intB !== intA) {
+                        return intB - intA;
+                    }
+                }
+                return nombreA.localeCompare(nombreB, 'es');
+            });
+
+            // 2. Reinsertar en el DOM y aplicar filtros
+            var visibles = 0;
+            tarjetasDeseados.forEach(function (tarjeta) {
+                contenedorDeseados.appendChild(tarjeta);
+
+                var nombre = (tarjeta.getAttribute('data-nombre') || '').toLowerCase();
+                var estoyApuntado = tarjeta.getAttribute('data-interesado') === '1';
+
+                var coincideNombre = (texto === '' || nombre.indexOf(texto) !== -1);
+                var coincideInteres = (
+                    interesFiltro === 'todos' ||
+                    (interesFiltro === 'mios' && estoyApuntado) ||
+                    (interesFiltro === 'no_mios' && !estoyApuntado)
+                );
+
+                if (coincideNombre && coincideInteres) {
+                    tarjeta.style.display = '';
+                    visibles++;
+                } else {
+                    tarjeta.style.display = 'none';
+                }
+            });
+
+            if (msgSinResultadosDeseados) {
+                msgSinResultadosDeseados.style.display = (visibles === 0) ? 'block' : 'none';
+            }
+        }
+
+        if (inputBuscarDeseados) {
+            inputBuscarDeseados.addEventListener('input', actualizarVistaDeseados);
+        }
+        if (selectInteresDeseados) {
+            selectInteresDeseados.addEventListener('change', actualizarVistaDeseados);
+        }
+        if (selectOrdenDeseados) {
+            selectOrdenDeseados.addEventListener('change', actualizarVistaDeseados);
         }
     }
 
@@ -486,6 +624,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         estado: selectFiltroLudoteca ? selectFiltroLudoteca.value : 'todos',
                         orden: selectOrdenLudoteca ? selectOrdenLudoteca.value : 'alfabetico'
                     },
+                    deseados: {
+                        buscar: inputBuscarDeseados ? inputBuscarDeseados.value : '',
+                        interes: selectInteresDeseados ? selectInteresDeseados.value : 'todos',
+                        orden: selectOrdenDeseados ? selectOrdenDeseados.value : 'alfabetico'
+                    },
                     ts: Date.now()
                 };
 
@@ -524,6 +667,26 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     if (huboCambioLudoteca && typeof actualizarVistaLudoteca === 'function') {
                         actualizarVistaLudoteca();
+                    }
+                }
+
+                // 1.B. Restaurar filtros y ordenación de Juegos Deseados (juegos.php)
+                if (contenedorDeseados && estado.deseados) {
+                    var huboCambioDeseados = false;
+                    if (inputBuscarDeseados && typeof estado.deseados.buscar === 'string' && estado.deseados.buscar !== '') {
+                        inputBuscarDeseados.value = estado.deseados.buscar;
+                        huboCambioDeseados = true;
+                    }
+                    if (selectInteresDeseados && estado.deseados.interes && estado.deseados.interes !== 'todos') {
+                        selectInteresDeseados.value = estado.deseados.interes;
+                        huboCambioDeseados = true;
+                    }
+                    if (selectOrdenDeseados && estado.deseados.orden && estado.deseados.orden !== 'alfabetico') {
+                        selectOrdenDeseados.value = estado.deseados.orden;
+                        huboCambioDeseados = true;
+                    }
+                    if (huboCambioDeseados && typeof actualizarVistaDeseados === 'function') {
+                        actualizarVistaDeseados();
                     }
                 }
 
