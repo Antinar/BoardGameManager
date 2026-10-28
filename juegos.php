@@ -161,7 +161,7 @@ if ($juegoSeleccionadoNombre !== '') {
 
 if (!$juegoDetalle) {
     // Obtener ÚNICAMENTE los juegos que NO tenemos (lo_tenemos = 0) para la cuadrícula principal
-    $stmtNoTenemos = $pdo->query("SELECT NombreJuego, Url, lo_tenemos FROM Juego WHERE lo_tenemos = 0 ORDER BY NombreJuego ASC");
+    $stmtNoTenemos = $pdo->query("SELECT NombreJuego, Url, lo_tenemos, min_jugadores, max_jugadores FROM Juego WHERE lo_tenemos = 0 ORDER BY NombreJuego ASC");
     $juegosNoTenemos = $stmtNoTenemos->fetchAll();
 
     // Obtener lista de juegos que sí tenemos por si cualquier usuario necesita revertir su estado
@@ -412,20 +412,11 @@ if (!$juegoDetalle) {
                 </h2>
 
                 <div class="controles-ludoteca">
-                    <select id="filtro-interes-deseados" class="select-taberna">
-                        <option value="todos">Interés: Todos los juegos</option>
-                        <option value="mios">Mis juegos deseados (Apuntado)</option>
-                        <option value="no_mios">En los que NO estoy apuntado</option>
-                    </select>
-
-                    <select id="orden-deseados" class="select-taberna">
-                        <option value="alfabetico">Orden: Alfabético (A - Z)</option>
-                        <option value="interesados">Orden: Más interesados</option>
-                    </select>
-
                     <?php renderizarBuscador('Buscar juego deseado...', ['id' => 'buscador-deseados']); ?>
                 </div>
             </div>
+
+            <?php renderizarPanelAvanzadoFiltros('deseados', 'contenedor-deseados', 'buscador-deseados', 'deseados-sin-resultados'); ?>
 
             <p style="margin-bottom: 14px;">
                 Lista de juegos de interés para el grupo. <strong>Haz clic sobre la imagen o el título de cualquier juego</strong> para ver sus detalles, quiénes están interesados y dejar tus comentarios, o usa los botones inferiores de cada tarjeta.
@@ -454,7 +445,9 @@ if (!$juegoDetalle) {
                                  style="cursor:default;"
                                  data-nombre="<?php echo h($nombreJ); ?>"
                                  data-interesado="<?php echo $estoyApuntado ? '1' : '0'; ?>"
-                                 data-num-interesados="<?php echo (int)$numInteresados; ?>">
+                                 data-num-interesados="<?php echo (int)$numInteresados; ?>"
+                                 data-min-jugadores="<?php echo (int)$juego['min_jugadores']; ?>"
+                                 data-max-jugadores="<?php echo (int)$juego['max_jugadores']; ?>">
 
                             <a href="juegos.php?juego=<?php echo urlencode($nombreJ); ?>"
                                style="text-decoration:none; color:inherit; display:flex; flex-direction:column; gap:10px;">

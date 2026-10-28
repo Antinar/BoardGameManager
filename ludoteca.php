@@ -137,7 +137,7 @@ if ($juegoDetalle) {
         }
     }
 } else {
-    $stmtJuegos = $pdo->query("SELECT NombreJuego, Url FROM Juego WHERE lo_tenemos = 1 ORDER BY NombreJuego ASC");
+    $stmtJuegos = $pdo->query("SELECT NombreJuego, Url, min_jugadores, max_jugadores FROM Juego WHERE lo_tenemos = 1 ORDER BY NombreJuego ASC");
     $juegosLudoteca = $stmtJuegos->fetchAll();
 
     // Obtener los juegos de los que el usuario actual es propietario
@@ -406,28 +406,11 @@ if ($juegoDetalle) {
                 </h2>
 
                 <div class="controles-ludoteca">
-                    <select id="filtro-propiedad-ludoteca" class="select-taberna">
-                        <option value="todos">Propiedad: Todos</option>
-                        <option value="mios">En mi colección (Míos)</option>
-                        <option value="no_mios">Que yo NO tengo</option>
-                    </select>
-
-                    <select id="filtro-estado-ludoteca" class="select-taberna">
-                        <option value="todos">Estado: Todos</option>
-                        <option value="jugado">Jugados por mí</option>
-                        <option value="no_jugado">No jugados por mí</option>
-                        <option value="no_resenyado">No reseñados por mí</option>
-                    </select>
-
-                    <select id="orden-ludoteca" class="select-taberna">
-                        <option value="alfabetico">Orden: Alfabético (A - Z)</option>
-                        <option value="preferencias">Orden: Nota media global</option>
-                        <option value="mi_nota">Orden: Mi nota personal</option>
-                    </select>
-
                     <?php renderizarBuscador('Buscar juego por nombre...', ['id' => 'buscador-ludoteca']); ?>
                 </div>
             </div>
+
+            <?php renderizarPanelAvanzadoFiltros('ludoteca', 'contenedor-ludoteca', 'buscador-ludoteca', 'ludoteca-sin-resultados'); ?>
 
             <p style="margin-bottom: 14px;">
                 Catálogo de juegos disponibles en la taberna. <strong>Haz clic sobre cualquier juego</strong> para abrir su ficha, indicar si lo has jugado, puntuarlo del 1 al 5 y consultar las reseñas del resto del grupo.
@@ -496,7 +479,9 @@ if ($juegoDetalle) {
                            data-mi-estado="<?php echo h($miEstadoFiltro); ?>"
                            data-es-mio="<?php echo h($esMio); ?>"
                            data-nota-media="<?php echo h($valorOrdenMedia); ?>"
-                           data-mi-nota="<?php echo h($valorMiNota); ?>">
+                           data-mi-nota="<?php echo h($valorMiNota); ?>"
+                           data-min-jugadores="<?php echo (int)$juego['min_jugadores']; ?>"
+                           data-max-jugadores="<?php echo (int)$juego['max_jugadores']; ?>">
 
                             <h3 class="tarjeta-ludoteca-titulo"><?php echo h($nombreJ); ?></h3>
 

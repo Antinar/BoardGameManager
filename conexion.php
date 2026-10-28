@@ -308,6 +308,82 @@ function renderizarBuscador($placeholder = 'Buscar...', array $opciones = []) {
     <?php
 }
 
+/**
+ * Renderiza el Panel Avanzado de Filtros dinámicos y Ordenación (contraído por defecto).
+ *
+ * @param string $modo           'ludoteca' o 'deseados'
+ * @param string $idContenedor   ID del contenedor de tarjetas (.grid-ludoteca)
+ * @param string $idInputBuscar  ID del buscador externo por nombre
+ * @param string $idSinResultado ID del párrafo de "sin resultados"
+ */
+function renderizarPanelAvanzadoFiltros($modo, $idContenedor, $idInputBuscar, $idSinResultado) {
+    $esLudoteca = ($modo === 'ludoteca');
+    ?>
+    <div class="panel-filtros-avanzado contraido"
+         data-panel-filtros="<?php echo h($modo); ?>"
+         data-target-grid="<?php echo h($idContenedor); ?>"
+         data-search-input="<?php echo h($idInputBuscar); ?>"
+         data-empty-msg="<?php echo h($idSinResultado); ?>">
+
+        <div class="panel-filtros-cabecera" data-toggle-panel-filtros>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span class="indicador-plegado">&#9654;</span>
+                <strong>Filtros Avanzados y Ordenación</strong>
+                <span class="etiqueta etiqueta-bronce" data-resumen-filtros style="display:none;">0 activos</span>
+            </div>
+
+        </div>
+
+        <div class="panel-filtros-cuerpo">
+            <div class="panel-filtros-barra-superior">
+                <div class="panel-filtros-orden-bloque">
+                    <label style="margin-bottom:0; white-space:nowrap;">Ordenar por:</label>
+                    <select class="select-taberna" data-select-orden-avanzado style="width:auto; min-width:230px;">
+                        <option value="alfabetico">Alfabético (A - Z)</option>
+                        <?php if ($esLudoteca): ?>
+                            <option value="preferencias">Nota media global (Mayor a menor)</option>
+                            <option value="mi_nota">Mi nota personal (Mayor a menor)</option>
+                        <?php else: ?>
+                            <option value="interesados">Más interesados primero</option>
+                        <?php endif; ?>
+                    </select>
+                </div>
+
+                <button type="button" class="btn btn-bronce btn-pequeno" data-btn-add-filtro>
+                    + Añadir Filtro
+                </button>
+            </div>
+
+            <!-- Área con scroll interno y altura redimensionable verticalmente (mínimo 110px) -->
+            <div class="panel-filtros-scroll-area" data-filtros-scroll-area>
+                <div class="panel-filtros-lista" data-filtros-lista></div>
+                <p class="panel-filtros-vacio" data-filtros-vacio>
+                    No hay filtros añadidos. Pulsa en «+ Añadir Filtro» para agregar condiciones combinadas con AND / OR.
+                </p>
+            </div>
+
+            <!-- Barra inferior con tirador de redimensionado en la esquina inferior izquierda y botones Aplicar / Limpiar -->
+            <div class="panel-filtros-pie">
+                <div class="tirador-redimensionar-izq"
+                     data-resize-handle
+                     title="Arrastra arriba o abajo para cambiar la altura del área de filtros">
+                    &#8661; Redimensionar alto
+                </div>
+
+                <div class="panel-filtros-acciones">
+                    <button type="button" class="btn btn-peligro btn-pequeno" data-btn-limpiar-filtros>
+                        Limpiar Todo
+                    </button>
+                    <button type="button" class="btn btn-exito btn-pequeno" data-btn-aplicar-filtros>
+                        Aplicar Filtros y Orden
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php
+}
+
 
 /**
  * Lee la respuesta del servidor SMTP.

@@ -239,142 +239,335 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // 7. Buscador, filtro de propiedad, filtro de estado personal y ordenación en Ludoteca (ludoteca.php)
-    var contenedorLudoteca = document.getElementById('contenedor-ludoteca');
-    var inputBuscarLudoteca = document.getElementById('buscador-ludoteca');
-    var selectPropiedadLudoteca = document.getElementById('filtro-propiedad-ludoteca');
-    var selectFiltroLudoteca = document.getElementById('filtro-estado-ludoteca');
-    var selectOrdenLudoteca = document.getElementById('orden-ludoteca');
-    var msgSinResultadosLudoteca = document.getElementById('ludoteca-sin-resultados');
+    // 7. Panel Avanzado de Filtros Dinámicos (AND/OR secuencial, Negación, Reordenación y Redimensionado vertical)
+    var DEFINICION_FILTROS = {
+        ludoteca: [
+            { tipo: 'mio',       etiqueta: 'En mi colección (Lo tengo)', requiereNumero: false },
+            { tipo: 'jugado',    etiqueta: 'Jugado por mí',              requiereNumero: false },
+            { tipo: 'resenyado', etiqueta: 'Reseñado por mí',            requiereNumero: false },
+            { tipo: 'jugadores', etiqueta: 'Válido para N jugadores',    requiereNumero: true }
+        ],
+        deseados: [
+            { tipo: 'interesado', etiqueta: 'Me interesa (Estoy apuntado)', requiereNumero: false },
+            { tipo: 'jugadores',  etiqueta: 'Válido para N jugadores',      requiereNumero: true }
+        ]
+    };
 
-    if (contenedorLudoteca) {
-        var tarjetasLudoteca = Array.prototype.slice.call(contenedorLudoteca.querySelectorAll('.tarjeta-ludoteca'));
+    var controladoresPanelesFiltro = {};
 
-        function actualizarVistaLudoteca() {
-            var texto = inputBuscarLudoteca ? inputBuscarLudoteca.value.toLowerCase().trim() : '';
-            var propiedadFiltro = selectPropiedadLudoteca ? selectPropiedadLudoteca.value : 'todos';
-            var estadoFiltro = selectFiltroLudoteca ? selectFiltroLudoteca.value : 'todos';
-            var criterioOrden = selectOrdenLudoteca ? selectOrdenLudoteca.value : 'alfabetico';
+    document.querySelectorAll('[data-panel-filtros]').forEach(function (panel) {
+        var modo = panel.getAttribute('data-panel-filtros') || 'ludoteca';
+        var idGrid = panel.getAttribute('data-target-grid');
+        var idSearch = panel.getAttribute('data-search-input');
+        var idEmpty = panel.getAttribute('data-empty-msg');
 
-            // 1. Ordenar las tarjetas en memoria según el criterio elegido
-            tarjetasLudoteca.sort(function (a, b) {
+        var contenedorGrid = document.getElementById(idGrid);
+        var inputBuscar = document.getElementById(idSearch);
+        var msgVacio = document.getElementById(idEmpty);
+        if (!contenedorGrid) return;
+
+        var tarjetas = Array.prototype.slice.call(contenedorGrid.querySelectorAll('.tarjeta-ludoteca'));
+        var cabeceraToggle = panel.querySelector('[data-toggle-panel-filtros]');
+        var badgeResumen = panel.querySelector('[data-resumen-filtros]');
+        var selectOrden = panel.querySelector('[data-select-orden-avanzado]');
+        var btnAddFiltro = panel.querySelector('[data-btn-add-filtro]');
+        var btnAplicar = panel.querySelector('[data-btn-aplicar-filtros]');
+        var btnLimpiar = panel.querySelector('[data-btn-limpiar-filtros]');
+        var scrollArea = panel.querySelector('[data-filtros-scroll-area]');
+        var listaFiltros = panel.querySelector('[data-filtros-lista]');
+        var msgFiltrosVacio = panel.querySelector('[data-filtros-vacio]');
+        var resizeHandle = panel.querySelector('[data-resize-handle]');
+
+        var opcionesDisponibles = DEFINICION_FILTROS[modo] || DEFINICION_FILTROS.ludoteca;
+
+        // Estado actualmente aplicado (solo cambia al pulsar "Aplicar", "Limpiar" o al restaurar sesión)
+        var filtrosAplicados = [];
+        var ordenAplicado = selectOrden ? selectOrden.value : 'alfabetico';
+
+        // 1. Desplegar / Contraer el panel avanzado
+        if (cabeceraToggle) {
+            cabeceraToggle.addEventListener('click', function () {
+                panel.classList.toggle('contraido');
+            });
+        }
+
+        // 2. Actualizar visualmente qué fila es la primera (oculta el selector AND/OR en la fila 1)
+        function sincronizarFilasDOM() {
+            var filas = listaFiltros.querySelectorAll('.filtro-fila');
+            if (msgFiltrosVacio) {
+                msgFiltrosVacio.style.display = (filas.length === 0) ? 'block' : 'none';
+            }
+            filas.forEach(function (fila, idx) {
+                var selectOp = fila.querySelector('[data-filtro-operador]');
+                var etqInicio = fila.querySelector('[data-filtro-inicio-label]');
+                var btnSubir = fila.querySelector('[data-filtro-subir]');
+                var btnBajar = fila.querySelector('[data-filtro-bajar]');
+
+                if (idx === 0) {
+                    if (selectOp) selectOp.style.display = 'none';
+                    if (etqInicio) etqInicio.style.display = 'inline-block';
+                } else {
+                    if (selectOp) selectOp.style.display = '';
+                    if (etqInicio) etqInicio.style.display = 'none';
+                }
+
+                if (btnSubir) btnSubir.disabled = (idx === 0);
+                if (btnBajar) btnBajar.disabled = (idx === filas.length - 1);
+            });
+        }
+
+        // 3. Crear una fila de filtro en el DOM
+        function crearFilaFiltro(datosIniciales) {
+            var cfg = datosIniciales || {};
+            var operador = (cfg.operador === 'OR') ? 'OR' : 'AND';
+            var tipo = cfg.tipo || opcionesDisponibles[0].tipo;
+            var negado = !!cfg.negado;
+            var valorNum = (typeof cfg.valor === 'number' && !isNaN(cfg.valor)) ? cfg.valor : 4;
+
+            var fila = document.createElement('div');
+            fila.className = 'filtro-fila';
+
+            // Botones para reordenar el filtro (Subir / Bajar)
+            var divOrden = document.createElement('div');
+            divOrden.className = 'filtro-reordenar-grupo';
+
+            var btnUp = document.createElement('button');
+            btnUp.type = 'button';
+            btnUp.className = 'btn btn-pequeno btn-mover-filtro';
+            btnUp.setAttribute('data-filtro-subir', '1');
+            btnUp.title = 'Subir este filtro';
+            btnUp.innerHTML = '&#9650;';
+
+            var btnDown = document.createElement('button');
+            btnDown.type = 'button';
+            btnDown.className = 'btn btn-pequeno btn-mover-filtro';
+            btnDown.setAttribute('data-filtro-bajar', '1');
+            btnDown.title = 'Bajar este filtro';
+            btnDown.innerHTML = '&#9660;';
+
+            divOrden.appendChild(btnUp);
+            divOrden.appendChild(btnDown);
+
+            // Puerta lógica (AND por defecto / OR) o etiqueta "Donde" en la primera fila
+            var spanInicio = document.createElement('span');
+            spanInicio.className = 'filtro-etiqueta-inicio';
+            spanInicio.setAttribute('data-filtro-inicio-label', '1');
+            spanInicio.textContent = 'Condición:';
+
+            var selectOperador = document.createElement('select');
+            selectOperador.className = 'select-taberna filtro-select-operador';
+            selectOperador.setAttribute('data-filtro-operador', '1');
+            selectOperador.innerHTML =
+                '<option value="AND"' + (operador === 'AND' ? ' selected' : '') + '>AND (Y)</option>' +
+                '<option value="OR"' + (operador === 'OR' ? ' selected' : '') + '>OR (O)</option>';
+
+            // Selector de tipo de filtro
+            var selectTipo = document.createElement('select');
+            selectTipo.className = 'select-taberna filtro-select-tipo';
+            selectTipo.setAttribute('data-filtro-tipo', '1');
+            opcionesDisponibles.forEach(function (op) {
+                var opt = document.createElement('option');
+                opt.value = op.tipo;
+                opt.textContent = op.etiqueta;
+                if (op.tipo === tipo) opt.selected = true;
+                selectTipo.appendChild(opt);
+            });
+
+            // Input numérico adicional cuando se elige "Válido para N jugadores"
+            var inputNum = document.createElement('input');
+            inputNum.type = 'number';
+            inputNum.min = '1';
+            inputNum.max = '99';
+            inputNum.value = String(valorNum);
+            inputNum.className = 'input-taberna filtro-input-numero';
+            inputNum.setAttribute('data-filtro-valor', '1');
+            inputNum.title = 'Número de jugadores';
+
+            function actualizarVisibilidadNumero() {
+                var tActual = selectTipo.value;
+                var requiere = false;
+                opcionesDisponibles.forEach(function (op) {
+                    if (op.tipo === tActual && op.requiereNumero) requiere = true;
+                });
+                inputNum.style.display = requiere ? '' : 'none';
+            }
+            selectTipo.addEventListener('change', actualizarVisibilidadNumero);
+            actualizarVisibilidadNumero();
+
+            // Checkbox para usar el filtro en negado (NO)
+            var labelNegar = document.createElement('label');
+            labelNegar.className = 'filtro-check-negar';
+            var checkNegar = document.createElement('input');
+            checkNegar.type = 'checkbox';
+            checkNegar.checked = negado;
+            checkNegar.setAttribute('data-filtro-negado', '1');
+            var spanTxtNegar = document.createElement('span');
+            spanTxtNegar.textContent = 'Negar (NO)';
+            labelNegar.appendChild(checkNegar);
+            labelNegar.appendChild(spanTxtNegar);
+
+            // Botón eliminar fila
+            var btnEliminar = document.createElement('button');
+            btnEliminar.type = 'button';
+            btnEliminar.className = 'btn btn-peligro btn-pequeno filtro-btn-eliminar';
+            btnEliminar.title = 'Quitar este filtro';
+            btnEliminar.innerHTML = '&#10005;';
+
+            // Eventos de subir, bajar y eliminar fila
+            btnUp.addEventListener('click', function () {
+                var prev = fila.previousElementSibling;
+                if (prev) {
+                    listaFiltros.insertBefore(fila, prev);
+                    sincronizarFilasDOM();
+                }
+            });
+
+            btnDown.addEventListener('click', function () {
+                var next = fila.nextElementSibling;
+                if (next) {
+                    listaFiltros.insertBefore(next, fila);
+                    sincronizarFilasDOM();
+                }
+            });
+
+            btnEliminar.addEventListener('click', function () {
+                fila.remove();
+                sincronizarFilasDOM();
+            });
+
+            fila.appendChild(divOrden);
+            fila.appendChild(spanInicio);
+            fila.appendChild(selectOperador);
+            fila.appendChild(selectTipo);
+            fila.appendChild(inputNum);
+            fila.appendChild(labelNegar);
+            fila.appendChild(btnEliminar);
+
+            listaFiltros.appendChild(fila);
+            sincronizarFilasDOM();
+        }
+
+        // 4. Leer las filas actuales del DOM
+        function leerFiltrosDesdeDOM() {
+            var resultado = [];
+            var filas = listaFiltros.querySelectorAll('.filtro-fila');
+            filas.forEach(function (fila, idx) {
+                var selectOp = fila.querySelector('[data-filtro-operador]');
+                var selectTipo = fila.querySelector('[data-filtro-tipo]');
+                var inputVal = fila.querySelector('[data-filtro-valor]');
+                var checkNeg = fila.querySelector('[data-filtro-negado]');
+
+                var numVal = inputVal ? parseInt(inputVal.value, 10) : 4;
+                if (isNaN(numVal) || numVal < 1) numVal = 1;
+
+                resultado.push({
+                    operador: idx === 0 ? 'AND' : (selectOp ? selectOp.value : 'AND'),
+                    tipo: selectTipo ? selectTipo.value : opcionesDisponibles[0].tipo,
+                    negado: checkNeg ? !!checkNeg.checked : false,
+                    valor: numVal
+                });
+            });
+            return resultado;
+        }
+
+        // 5. Evaluar una condición individual sobre una tarjeta
+        function evaluarCondicionTarjeta(tarjeta, f) {
+            var cumple = true;
+            var miEstado = tarjeta.getAttribute('data-mi-estado') || '';
+
+            if (f.tipo === 'mio') {
+                cumple = (tarjeta.getAttribute('data-es-mio') === '1');
+            } else if (f.tipo === 'jugado') {
+                cumple = (miEstado === 'jugado');
+            } else if (f.tipo === 'resenyado') {
+                cumple = (miEstado !== 'no_resenyado');
+            } else if (f.tipo === 'interesado') {
+                cumple = (tarjeta.getAttribute('data-interesado') === '1');
+            } else if (f.tipo === 'jugadores') {
+                var minJ = parseInt(tarjeta.getAttribute('data-min-jugadores') || '1', 10);
+                var maxJ = parseInt(tarjeta.getAttribute('data-max-jugadores') || '99', 10);
+                cumple = (f.valor >= minJ && f.valor <= maxJ);
+            }
+
+            return f.negado ? !cumple : cumple;
+        }
+
+        // 6. Ejecutar el filtrado secuencial (AND / OR de arriba abajo) + buscador externo + ordenación
+        function ejecutarFiltradoYOrden() {
+            var textoBusqueda = inputBuscar ? inputBuscar.value.toLowerCase().trim() : '';
+
+            // Actualizar insignia resumen en la cabecera del panel
+            if (badgeResumen) {
+                if (filtrosAplicados.length > 0) {
+                    badgeResumen.textContent = filtrosAplicados.length + (filtrosAplicados.length === 1 ? ' filtro activo' : ' filtros activos');
+                    badgeResumen.style.display = 'inline-block';
+                } else {
+                    badgeResumen.style.display = 'none';
+                }
+            }
+
+            // 1. Ordenar tarjetas según el orden aplicado
+            tarjetas.sort(function (a, b) {
                 var nombreA = (a.getAttribute('data-nombre') || '').toLowerCase();
                 var nombreB = (b.getAttribute('data-nombre') || '').toLowerCase();
 
-                if (criterioOrden === 'preferencias') {
+                if (ordenAplicado === 'preferencias') {
                     var notaA = parseFloat(a.getAttribute('data-nota-media'));
                     var notaB = parseFloat(b.getAttribute('data-nota-media'));
                     if (isNaN(notaA)) notaA = -1;
                     if (isNaN(notaB)) notaB = -1;
-
-                    if (notaB !== notaA) {
-                        return notaB - notaA;
-                    }
-                } else if (criterioOrden === 'mi_nota') {
+                    if (notaB !== notaA) return notaB - notaA;
+                } else if (ordenAplicado === 'mi_nota') {
                     var miNotaA = parseFloat(a.getAttribute('data-mi-nota'));
                     var miNotaB = parseFloat(b.getAttribute('data-mi-nota'));
                     if (isNaN(miNotaA)) miNotaA = -1;
                     if (isNaN(miNotaB)) miNotaB = -1;
-
-                    // De mayor a menor según la nota personal del usuario (-1 sin nota queda al final)
-                    if (miNotaB !== miNotaA) {
-                        return miNotaB - miNotaA;
-                    }
-                }
-                // Desempate o criterio alfabético por defecto
-                return nombreA.localeCompare(nombreB, 'es');
-            });
-
-            // 2. Reinsertar en el DOM en el nuevo orden y aplicar filtros de visibilidad
-            var visibles = 0;
-            tarjetasLudoteca.forEach(function (tarjeta) {
-                contenedorLudoteca.appendChild(tarjeta);
-
-                var nombre = (tarjeta.getAttribute('data-nombre') || '').toLowerCase();
-                var miEstado = tarjeta.getAttribute('data-mi-estado') || '';
-                var esMio = tarjeta.getAttribute('data-es-mio') === '1';
-
-                var coincideNombre = (texto === '' || nombre.indexOf(texto) !== -1);
-                var coincideEstado = (estadoFiltro === 'todos' || miEstado === estadoFiltro);
-                var coincidePropiedad = (
-                    propiedadFiltro === 'todos' ||
-                    (propiedadFiltro === 'mios' && esMio) ||
-                    (propiedadFiltro === 'no_mios' && !esMio)
-                );
-
-                if (coincideNombre && coincideEstado && coincidePropiedad) {
-                    tarjeta.style.display = '';
-                    visibles++;
-                } else {
-                    tarjeta.style.display = 'none';
-                }
-            });
-
-            if (msgSinResultadosLudoteca) {
-                msgSinResultadosLudoteca.style.display = (visibles === 0) ? 'block' : 'none';
-            }
-        }
-
-        if (inputBuscarLudoteca) {
-            inputBuscarLudoteca.addEventListener('input', actualizarVistaLudoteca);
-        }
-        if (selectPropiedadLudoteca) {
-            selectPropiedadLudoteca.addEventListener('change', actualizarVistaLudoteca);
-        }
-        if (selectFiltroLudoteca) {
-            selectFiltroLudoteca.addEventListener('change', actualizarVistaLudoteca);
-        }
-        if (selectOrdenLudoteca) {
-            selectOrdenLudoteca.addEventListener('change', actualizarVistaLudoteca);
-        }
-    }
-
-    // 7.B. Buscador, filtro "Mis juegos deseados" y ordenación en Juegos Deseados (juegos.php)
-    var contenedorDeseados = document.getElementById('contenedor-deseados');
-    var inputBuscarDeseados = document.getElementById('buscador-deseados');
-    var selectInteresDeseados = document.getElementById('filtro-interes-deseados');
-    var selectOrdenDeseados = document.getElementById('orden-deseados');
-    var msgSinResultadosDeseados = document.getElementById('deseados-sin-resultados');
-
-    if (contenedorDeseados) {
-        var tarjetasDeseados = Array.prototype.slice.call(contenedorDeseados.querySelectorAll('.tarjeta-ludoteca'));
-
-        function actualizarVistaDeseados() {
-            var texto = inputBuscarDeseados ? inputBuscarDeseados.value.toLowerCase().trim() : '';
-            var interesFiltro = selectInteresDeseados ? selectInteresDeseados.value : 'todos';
-            var criterioOrden = selectOrdenDeseados ? selectOrdenDeseados.value : 'alfabetico';
-
-            // 1. Ordenar tarjetas según el criterio elegido
-            tarjetasDeseados.sort(function (a, b) {
-                var nombreA = (a.getAttribute('data-nombre') || '').toLowerCase();
-                var nombreB = (b.getAttribute('data-nombre') || '').toLowerCase();
-
-                if (criterioOrden === 'interesados') {
+                    if (miNotaB !== miNotaA) return miNotaB - miNotaA;
+                } else if (ordenAplicado === 'interesados') {
                     var intA = parseInt(a.getAttribute('data-num-interesados') || '0', 10);
                     var intB = parseInt(b.getAttribute('data-num-interesados') || '0', 10);
-                    if (intB !== intA) {
-                        return intB - intA;
-                    }
+                    if (intB !== intA) return intB - intA;
                 }
+
                 return nombreA.localeCompare(nombreB, 'es');
             });
 
-            // 2. Reinsertar en el DOM y aplicar filtros
+            // 2. Reinsertar en el DOM y evaluar buscador externo + cadena secuencial de filtros
             var visibles = 0;
-            tarjetasDeseados.forEach(function (tarjeta) {
-                contenedorDeseados.appendChild(tarjeta);
+            tarjetas.forEach(function (tarjeta) {
+                contenedorGrid.appendChild(tarjeta);
 
                 var nombre = (tarjeta.getAttribute('data-nombre') || '').toLowerCase();
-                var estoyApuntado = tarjeta.getAttribute('data-interesado') === '1';
+                var coincideTexto = (textoBusqueda === '' || nombre.indexOf(textoBusqueda) !== -1);
 
-                var coincideNombre = (texto === '' || nombre.indexOf(texto) !== -1);
-                var coincideInteres = (
-                    interesFiltro === 'todos' ||
-                    (interesFiltro === 'mios' && estoyApuntado) ||
-                    (interesFiltro === 'no_mios' && !estoyApuntado)
-                );
+                var pasaFiltros = true;
+                if (filtrosAplicados.length > 0) {
+                    // Precedencia lógica estándar: se evalúan primero los grupos AND y luego se unen con OR
+                    pasaFiltros = false;
+                    var grupoAndActual = evaluarCondicionTarjeta(tarjeta, filtrosAplicados[0]);
 
-                if (coincideNombre && coincideInteres) {
+                    for (var i = 1; i < filtrosAplicados.length; i++) {
+                        var evalActual = evaluarCondicionTarjeta(tarjeta, filtrosAplicados[i]);
+                        if (filtrosAplicados[i].operador === 'OR') {
+                            // Cerramos el bloque AND anterior: si ya era true, basta para el OR general
+                            if (grupoAndActual) {
+                                pasaFiltros = true;
+                                break;
+                            }
+                            // Iniciamos un nuevo término para el siguiente bloque de ANDs
+                            grupoAndActual = evalActual;
+                        } else {
+                            // Operador AND: se resuelve primero dentro del término actual
+                            grupoAndActual = grupoAndActual && evalActual;
+                        }
+                    }
+
+                    if (grupoAndActual) {
+                        pasaFiltros = true;
+                    }
+                }
+
+                if (coincideTexto && pasaFiltros) {
                     tarjeta.style.display = '';
                     visibles++;
                 } else {
@@ -382,21 +575,143 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            if (msgSinResultadosDeseados) {
-                msgSinResultadosDeseados.style.display = (visibles === 0) ? 'block' : 'none';
+            if (msgVacio) {
+                msgVacio.style.display = (visibles === 0) ? 'block' : 'none';
             }
         }
 
-        if (inputBuscarDeseados) {
-            inputBuscarDeseados.addEventListener('input', actualizarVistaDeseados);
+        // Eventos de botones del panel
+        if (btnAddFiltro) {
+            btnAddFiltro.addEventListener('click', function () {
+                crearFilaFiltro();
+                if (scrollArea) {
+                    scrollArea.scrollTop = scrollArea.scrollHeight;
+                }
+            });
         }
-        if (selectInteresDeseados) {
-            selectInteresDeseados.addEventListener('change', actualizarVistaDeseados);
+
+        if (btnAplicar) {
+            btnAplicar.addEventListener('click', function () {
+                filtrosAplicados = leerFiltrosDesdeDOM();
+                ordenAplicado = selectOrden ? selectOrden.value : 'alfabetico';
+                ejecutarFiltradoYOrden();
+            });
         }
-        if (selectOrdenDeseados) {
-            selectOrdenDeseados.addEventListener('change', actualizarVistaDeseados);
+
+        if (btnLimpiar) {
+            btnLimpiar.addEventListener('click', function () {
+                listaFiltros.innerHTML = '';
+                sincronizarFilasDOM();
+                if (selectOrden) selectOrden.value = 'alfabetico';
+                filtrosAplicados = [];
+                ordenAplicado = 'alfabetico';
+                ejecutarFiltradoYOrden();
+            });
         }
-    }
+
+        // El buscador externo por nombre sigue actuando en tiempo real combinado con los filtros aplicados
+        if (inputBuscar) {
+            inputBuscar.addEventListener('input', ejecutarFiltradoYOrden);
+        }
+
+        // 7. Tirador en la esquina inferior izquierda para redimensionar verticalmente (con altura mínima de 110px)
+        var ALTURA_MINIMA_SCROLL = 110;
+        var ALTURA_MAXIMA_SCROLL = 520;
+
+        if (resizeHandle && scrollArea) {
+            var arrastrandoResize = false;
+            var startY = 0;
+            var startHeight = 0;
+
+            function iniciarResize(clientY) {
+                arrastrandoResize = true;
+                startY = clientY;
+                startHeight = scrollArea.offsetHeight;
+                document.body.style.userSelect = 'none';
+            }
+
+            function moverResize(clientY) {
+                if (!arrastrandoResize) return;
+                var nuevaAltura = startHeight + (clientY - startY);
+                if (nuevaAltura < ALTURA_MINIMA_SCROLL) nuevaAltura = ALTURA_MINIMA_SCROLL;
+                if (nuevaAltura > ALTURA_MAXIMA_SCROLL) nuevaAltura = ALTURA_MAXIMA_SCROLL;
+                scrollArea.style.height = nuevaAltura + 'px';
+                scrollArea.style.maxHeight = nuevaAltura + 'px';
+            }
+
+            function finalizarResize() {
+                if (arrastrandoResize) {
+                    arrastrandoResize = false;
+                    document.body.style.userSelect = '';
+                }
+            }
+
+            resizeHandle.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                iniciarResize(e.clientY);
+            });
+            window.addEventListener('mousemove', function (e) {
+                moverResize(e.clientY);
+            });
+            window.addEventListener('mouseup', finalizarResize);
+
+            resizeHandle.addEventListener('touchstart', function (e) {
+                if (e.touches && e.touches[0]) {
+                    e.preventDefault();
+                    iniciarResize(e.touches[0].clientY);
+                }
+            }, { passive: false });
+            window.addEventListener('touchmove', function (e) {
+                if (arrastrandoResize && e.touches && e.touches[0]) {
+                    moverResize(e.touches[0].clientY);
+                }
+            }, { passive: true });
+            window.addEventListener('touchend', finalizarResize);
+        }
+
+        // Registrar controlador para guardar/restaurar su estado al navegar a un juego y volver atrás
+        controladoresPanelesFiltro[modo] = {
+            obtenerEstado: function () {
+                return {
+                    abierto: !panel.classList.contains('contraido'),
+                    buscar: inputBuscar ? inputBuscar.value : '',
+                    ordenDOM: selectOrden ? selectOrden.value : 'alfabetico',
+                    ordenAplicado: ordenAplicado,
+                    filtrosDOM: leerFiltrosDesdeDOM(),
+                    filtrosAplicados: filtrosAplicados,
+                    alturaScroll: scrollArea ? scrollArea.style.height : ''
+                };
+            },
+            restaurarEstado: function (est) {
+                if (!est) return;
+                if (est.abierto) {
+                    panel.classList.remove('contraido');
+                } else {
+                    panel.classList.add('contraido');
+                }
+                if (inputBuscar && typeof est.buscar === 'string') {
+                    inputBuscar.value = est.buscar;
+                }
+                if (selectOrden && est.ordenDOM) {
+                    selectOrden.value = est.ordenDOM;
+                }
+                if (scrollArea && est.alturaScroll) {
+                    scrollArea.style.height = est.alturaScroll;
+                    scrollArea.style.maxHeight = est.alturaScroll;
+                }
+                listaFiltros.innerHTML = '';
+                if (Array.isArray(est.filtrosDOM)) {
+                    est.filtrosDOM.forEach(function (f) {
+                        crearFilaFiltro(f);
+                    });
+                }
+                sincronizarFilasDOM();
+                filtrosAplicados = Array.isArray(est.filtrosAplicados) ? est.filtrosAplicados : [];
+                ordenAplicado = est.ordenAplicado || 'alfabetico';
+                ejecutarFiltradoYOrden();
+            }
+        };
+    });
 
     // 8. Mostrar / ocultar selector de propietarios en alta_juego.php según "Ya lo tenemos"
     var radiosPropietarios = document.querySelectorAll('input[type="radio"][data-toggle-propietarios]');
@@ -612,23 +927,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     filtrosCards[k] = inp.value;
                 });
 
+                var estadoPanelesAvanzados = {};
+                Object.keys(controladoresPanelesFiltro).forEach(function (kModo) {
+                    estadoPanelesAvanzados[kModo] = controladoresPanelesFiltro[kModo].obtenerEstado();
+                });
+
                 var estado = {
                     scrollY: window.scrollY || window.pageYOffset || 0,
                     scrollsTablas: scrollsTablas,
                     votacionesAbiertas: votacionesAbiertas,
                     filtrosTablas: filtrosTablas,
                     filtrosCards: filtrosCards,
-                    ludoteca: {
-                        buscar: inputBuscarLudoteca ? inputBuscarLudoteca.value : '',
-                        propiedad: selectPropiedadLudoteca ? selectPropiedadLudoteca.value : 'todos',
-                        estado: selectFiltroLudoteca ? selectFiltroLudoteca.value : 'todos',
-                        orden: selectOrdenLudoteca ? selectOrdenLudoteca.value : 'alfabetico'
-                    },
-                    deseados: {
-                        buscar: inputBuscarDeseados ? inputBuscarDeseados.value : '',
-                        interes: selectInteresDeseados ? selectInteresDeseados.value : 'todos',
-                        orden: selectOrdenDeseados ? selectOrdenDeseados.value : 'alfabetico'
-                    },
+                    panelesAvanzados: estadoPanelesAvanzados,
                     ts: Date.now()
                 };
 
@@ -646,48 +956,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 var estado = JSON.parse(raw);
                 if (!estado) return;
 
-                // 1. Restaurar filtros y ordenación de la Ludoteca antes de medir el scroll
-                if (contenedorLudoteca && estado.ludoteca) {
-                    var huboCambioLudoteca = false;
-                    if (inputBuscarLudoteca && typeof estado.ludoteca.buscar === 'string' && estado.ludoteca.buscar !== '') {
-                        inputBuscarLudoteca.value = estado.ludoteca.buscar;
-                        huboCambioLudoteca = true;
-                    }
-                    if (selectPropiedadLudoteca && estado.ludoteca.propiedad && estado.ludoteca.propiedad !== 'todos') {
-                        selectPropiedadLudoteca.value = estado.ludoteca.propiedad;
-                        huboCambioLudoteca = true;
-                    }
-                    if (selectFiltroLudoteca && estado.ludoteca.estado && estado.ludoteca.estado !== 'todos') {
-                        selectFiltroLudoteca.value = estado.ludoteca.estado;
-                        huboCambioLudoteca = true;
-                    }
-                    if (selectOrdenLudoteca && estado.ludoteca.orden && estado.ludoteca.orden !== 'alfabetico') {
-                        selectOrdenLudoteca.value = estado.ludoteca.orden;
-                        huboCambioLudoteca = true;
-                    }
-                    if (huboCambioLudoteca && typeof actualizarVistaLudoteca === 'function') {
-                        actualizarVistaLudoteca();
-                    }
-                }
-
-                // 1.B. Restaurar filtros y ordenación de Juegos Deseados (juegos.php)
-                if (contenedorDeseados && estado.deseados) {
-                    var huboCambioDeseados = false;
-                    if (inputBuscarDeseados && typeof estado.deseados.buscar === 'string' && estado.deseados.buscar !== '') {
-                        inputBuscarDeseados.value = estado.deseados.buscar;
-                        huboCambioDeseados = true;
-                    }
-                    if (selectInteresDeseados && estado.deseados.interes && estado.deseados.interes !== 'todos') {
-                        selectInteresDeseados.value = estado.deseados.interes;
-                        huboCambioDeseados = true;
-                    }
-                    if (selectOrdenDeseados && estado.deseados.orden && estado.deseados.orden !== 'alfabetico') {
-                        selectOrdenDeseados.value = estado.deseados.orden;
-                        huboCambioDeseados = true;
-                    }
-                    if (huboCambioDeseados && typeof actualizarVistaDeseados === 'function') {
-                        actualizarVistaDeseados();
-                    }
+                // 1. Restaurar Paneles Avanzados de Filtros y Ordenación (Ludoteca y Juegos Deseados)
+                if (estado.panelesAvanzados) {
+                    Object.keys(estado.panelesAvanzados).forEach(function (kModo) {
+                        if (controladoresPanelesFiltro[kModo]) {
+                            controladoresPanelesFiltro[kModo].restaurarEstado(estado.panelesAvanzados[kModo]);
+                        }
+                    });
                 }
 
                 // 2. Restaurar buscadores de tablas ([data-table-filter])
