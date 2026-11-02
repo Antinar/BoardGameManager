@@ -1298,3 +1298,72 @@ body {
         flex: 1;
     }
 }
+
+/* =========================================================================
+   GRÁFICO TEMPORAL ACUMULATIVO DE VICTORIAS (LEADERBOARD)
+   ========================================================================= */
+.controles-grafico-leaderboard {
+    margin-bottom: 0;
+}
+
+.controles-grafico-fila {
+    display: flex;
+    gap: 14px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #4a3219;
+}
+
+.grupo-control-grafico {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.grupo-control-grafico .select-taberna,
+.grupo-control-grafico .input-taberna {
+    width: auto;
+    min-width: 170px;
+}
+
+.leyenda-grafico-taberna {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.item-leyenda-grafico {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #f7f1df;
+    border: 2px solid #4a3219;
+    padding: 4px 10px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.88rem;
+    font-weight: bold;
+    color: #23170f;
+    cursor: pointer;
+    border-radius: 2px;
+}
+
+.item-leyenda-grafico.leyenda-oculta {
+    opacity: 0.45;
+    text-decoration: line-through;
+}
+
+.color-leyenda-muestra {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #1a110b;
+    display: inline-block;
+}
+
+.lienzo-grafico-wrapper {
+    width: 100%;
+    border: 2px solid #362417;
+    background-color: #f7f1df;
+}

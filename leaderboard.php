@@ -74,27 +74,26 @@ if ($filtroJuego !== '') {
     $ranking = $stmtRanking->fetchAll();
 }
 
-// Obtener el historial de últimas partidas ganadas
+// Obtener el historial completo de victorias para el gráfico temporal acumulativo (respetando el filtro de juego)
 if ($filtroJuego !== '') {
     $stmtHistorial = $pdo->prepare("
-        SELECT v.id_victoria, v.username, p.NombrePersona, v.NombreJuego, v.fecha_victoria
+        SELECT v.id_victoria, v.username, p.NombrePersona, v.NombreJuego, DATE(v.fecha_victoria) AS fecha_dia, v.fecha_victoria
         FROM Victoria v
         INNER JOIN Persona p ON v.username = p.username
         WHERE v.NombreJuego = ?
-        ORDER BY v.fecha_victoria DESC, v.id_victoria DESC
-        LIMIT 25
+        ORDER BY v.fecha_victoria ASC, v.id_victoria ASC
     ");
     $stmtHistorial->execute([$filtroJuego]);
-    $ultimasVictorias = $stmtHistorial->fetchAll();
+    $victoriasGrafico = $stmtHistorial->fetchAll();
 } else {
     $stmtHistorial = $pdo->query("
-        SELECT v.id_victoria, v.username, p.NombrePersona, v.NombreJuego, v.fecha_victoria
+        SELECT v.id_victoria, v.username, p.NombrePersona, v.NombreJuego, DATE(v.fecha_victoria) AS fecha_dia, v.fecha_victoria
         FROM Victoria v
         INNER JOIN Persona p ON v.username = p.username
-        ORDER BY v.fecha_victoria DESC, v.id_victoria DESC
-        LIMIT 25
+        INNER JOIN Juego j ON v.NombreJuego = j.NombreJuego AND j.lo_tenemos = 1
+        ORDER BY v.fecha_victoria ASC, v.id_victoria ASC
     ");
-    $ultimasVictorias = $stmtHistorial->fetchAll();
+    $victoriasGrafico = $stmtHistorial->fetchAll();
 }
 ?>
 <!DOCTYPE html>
@@ -224,43 +223,58 @@ if ($filtroJuego !== '') {
         </div>
     </section>
 
-    <!-- Historial de Últimas Partidas Ganadas -->
+    <!-- Gráfico Temporal Acumulativo de Victorias -->
     <section class="pergamino">
-        <h2 class="seccion-titulo">Últimas Partidas Ganadas</h2>
-        <div class="tabla-contenedor">
-            <table class="tabla-taberna">
-                <thead>
-                    <tr>
-                        <th>Ganador</th>
-                        <th>Juego de Mesa</th>
-                        <th style="width:210px;">Fecha y Hora</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (count($ultimasVictorias) === 0): ?>
-                        <tr>
-                            <td colspan="3" style="text-align:center; font-style:italic;">
-                                No hay victorias registradas para el filtro seleccionado.
-                            </td>
-                        </tr>
-                    <?php else: ?>
-                        <?php foreach ($ultimasVictorias as $uv): ?>
-                            <tr>
-                                <td>
-                                    <strong><?php echo h($uv['NombrePersona']); ?></strong>
-                                    (<?php echo h($uv['username']); ?>)
-                                </td>
-                                <td><?php echo h($uv['NombreJuego']); ?></td>
-                                <td><?php echo h($uv['fecha_victoria']); ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+        <div class="barra-titulo-filtro" style="border-bottom:2px solid #4a3219; padding-bottom:10px; margin-bottom:14px;">
+            <h2 class="seccion-titulo" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+                <?php if ($filtroJuego !== ''): ?>
+                    Evolución Temporal de Victorias: <?php echo h($filtroJuego); ?>
+                <?php else: ?>
+                    Evolución Temporal de Victorias (Global)
+                <?php endif; ?>
+            </h2>
+        </div>
+
+        <div class="controles-grafico-leaderboard pergamino-secundario" id="panel-grafico-victorias"
+             data-victorias="<?php echo h(json_encode($victoriasGrafico, JSON_UNESCAPED_UNICODE)); ?>"
+             data-hoy="<?php echo date('Y-m-d'); ?>">
+
+            <div class="controles-grafico-fila">
+                <div class="grupo-control-grafico">
+                    <label for="rango-rapido-grafico">Plazo rápido:</label>
+                    <select id="rango-rapido-grafico" class="select-taberna">
+                        <option value="1m">Último mes</option>
+                        <option value="3m">Últimos 3 meses</option>
+                        <option value="6m">Últimos 6 meses</option>
+                        <option value="1y" selected>Último año (Por defecto)</option>
+                        <option value="all">Todo el historial</option>
+                        <option value="custom">Personalizado</option>
+                    </select>
+                </div>
+
+                <div class="grupo-control-grafico">
+                    <label for="fecha-desde-grafico">Desde:</label>
+                    <input type="date" id="fecha-desde-grafico" class="input-taberna">
+                </div>
+
+                <div class="grupo-control-grafico">
+                    <label for="fecha-hasta-grafico">Hasta:</label>
+                    <input type="date" id="fecha-hasta-grafico" class="input-taberna">
+                </div>
+            </div>
+
+            <div id="leyenda-grafico-victorias" class="leyenda-grafico-taberna"></div>
+
+            <div class="lienzo-grafico-wrapper">
+                <canvas id="canvas-grafico-victorias" height="340"></canvas>
+                <p id="grafico-sin-victorias" style="display:none; font-style:italic; text-align:center; padding:34px 12px; margin:0; color:#5a4634;">
+                    No hay victorias registradas en este rango de fechas para el filtro actual.
+                </p>
+            </div>
         </div>
     </section>
 </main>
 
-<script src="app.js"></script>
+<script src="app.js?v=<?php echo @filemtime(__DIR__ . '/app.js') ?: time(); ?>"></script>
 </body>
 </html>

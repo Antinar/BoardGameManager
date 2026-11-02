@@ -884,6 +884,298 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // 9.C. Gráfico temporal acumulativo de victorias en Leaderboard (leaderboard.php)
+    var panelGraficoVictorias = document.getElementById('panel-grafico-victorias');
+    if (panelGraficoVictorias) {
+        var selectRangoRapido = document.getElementById('rango-rapido-grafico');
+        var inputFechaDesde = document.getElementById('fecha-desde-grafico');
+        var inputFechaHasta = document.getElementById('fecha-hasta-grafico');
+        var contenedorLeyenda = document.getElementById('leyenda-grafico-victorias');
+        var canvasGrafico = document.getElementById('canvas-grafico-victorias');
+        var msgSinVictoriasGrafico = document.getElementById('grafico-sin-victorias');
+
+        var datosVictoriasRaw = [];
+        try {
+            datosVictoriasRaw = JSON.parse(panelGraficoVictorias.getAttribute('data-victorias') || '[]');
+        } catch (e) {
+            datosVictoriasRaw = [];
+        }
+        var fechaHoyStr = panelGraficoVictorias.getAttribute('data-hoy') || new Date().toISOString().slice(0, 10);
+
+        // Paleta rústica de alto contraste para distinguir a cada jugador
+        var PALETA_JUGADORES = [
+            '#8c2d19', '#2e5a27', '#1f4e78', '#a67c2e', '#5b2c6f',
+            '#b05b18', '#116a65', '#78281f', '#34495e', '#6e2c00',
+            '#1e8449', '#2874a6'
+        ];
+        var jugadoresOcultos = {};
+
+        function restarMeses(fechaStr, meses) {
+            var p = fechaStr.split('-');
+            var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+            d.setMonth(d.getMonth() - meses);
+            var y = d.getFullYear();
+            var m = String(d.getMonth() + 1);
+            if (m.length < 2) m = '0' + m;
+            var day = String(d.getDate());
+            if (day.length < 2) day = '0' + day;
+            return y + '-' + m + '-' + day;
+        }
+
+        function aplicarPlazoRapido(plazo) {
+            if (!inputFechaDesde || !inputFechaHasta) return;
+            inputFechaHasta.value = fechaHoyStr;
+
+            if (plazo === '1m') {
+                inputFechaDesde.value = restarMeses(fechaHoyStr, 1);
+            } else if (plazo === '3m') {
+                inputFechaDesde.value = restarMeses(fechaHoyStr, 3);
+            } else if (plazo === '6m') {
+                inputFechaDesde.value = restarMeses(fechaHoyStr, 6);
+            } else if (plazo === '1y') {
+                inputFechaDesde.value = restarMeses(fechaHoyStr, 12);
+            } else if (plazo === 'all') {
+                if (datosVictoriasRaw.length > 0 && datosVictoriasRaw[0].fecha_dia) {
+                    inputFechaDesde.value = datosVictoriasRaw[0].fecha_dia;
+                } else {
+                    inputFechaDesde.value = restarMeses(fechaHoyStr, 12);
+                }
+            }
+        }
+
+        function formatearFechaCorta(fechaIso) {
+            if (!fechaIso) return '';
+            var partes = fechaIso.split('-');
+            if (partes.length !== 3) return fechaIso;
+            return partes[2] + '/' + partes[1] + '/' + partes[0].slice(2);
+        }
+
+        function renderizarGraficoVictorias() {
+            if (!canvasGrafico) return;
+            var desde = inputFechaDesde && inputFechaDesde.value ? inputFechaDesde.value : restarMeses(fechaHoyStr, 12);
+            var hasta = inputFechaHasta && inputFechaHasta.value ? inputFechaHasta.value : fechaHoyStr;
+            if (desde > hasta) {
+                var tmp = desde;
+                desde = hasta;
+                hasta = tmp;
+            }
+
+            // Filtrar solo victorias dentro del rango [desde, hasta] (acumulado exclusivo del periodo)
+            var victoriasRango = datosVictoriasRaw.filter(function (v) {
+                var d = v.fecha_dia || (v.fecha_victoria ? v.fecha_victoria.slice(0, 10) : '');
+                return d >= desde && d <= hasta;
+            });
+
+            // Identificar jugadores con al menos 1 victoria en este rango
+            var mapaJugadores = {};
+            var ordenJugadores = [];
+            victoriasRango.forEach(function (v) {
+                var u = v.username;
+                if (!mapaJugadores[u]) {
+                    mapaJugadores[u] = {
+                        username: u,
+                        nombre: v.NombrePersona || u,
+                        totalPeriodo: 0,
+                        porDia: {}
+                    };
+                    ordenJugadores.push(u);
+                }
+                mapaJugadores[u].totalPeriodo++;
+                var dia = v.fecha_dia || v.fecha_victoria.slice(0, 10);
+                mapaJugadores[u].porDia[dia] = (mapaJugadores[u].porDia[dia] || 0) + 1;
+            });
+
+            ordenJugadores.sort(function (a, b) {
+                if (mapaJugadores[b].totalPeriodo !== mapaJugadores[a].totalPeriodo) {
+                    return mapaJugadores[b].totalPeriodo - mapaJugadores[a].totalPeriodo;
+                }
+                return mapaJugadores[a].nombre.localeCompare(mapaJugadores[b].nombre, 'es');
+            });
+
+            // Renderizar leyenda interactiva
+            if (contenedorLeyenda) {
+                contenedorLeyenda.innerHTML = '';
+                ordenJugadores.forEach(function (u, idx) {
+                    var info = mapaJugadores[u];
+                    var color = PALETA_JUGADORES[idx % PALETA_JUGADORES.length];
+                    info.color = color;
+
+                    var btnLeyenda = document.createElement('button');
+                    btnLeyenda.type = 'button';
+                    btnLeyenda.className = 'item-leyenda-grafico' + (jugadoresOcultos[u] ? ' leyenda-oculta' : '');
+                    btnLeyenda.innerHTML =
+                        '<span class="color-leyenda-muestra" style="background-color:' + color + ';"></span>' +
+                        '<span>' + info.nombre + ' (' + info.totalPeriodo + ')</span>';
+
+                    btnLeyenda.addEventListener('click', function () {
+                        jugadoresOcultos[u] = !jugadoresOcultos[u];
+                        renderizarGraficoVictorias();
+                    });
+                    contenedorLeyenda.appendChild(btnLeyenda);
+                });
+            }
+
+            if (ordenJugadores.length === 0) {
+                canvasGrafico.style.display = 'none';
+                if (msgSinVictoriasGrafico) msgSinVictoriasGrafico.style.display = 'block';
+                return;
+            }
+
+            canvasGrafico.style.display = 'block';
+            if (msgSinVictoriasGrafico) msgSinVictoriasGrafico.style.display = 'none';
+
+            // Construir lista de fechas clave en el eje X (inicio del rango + días con victorias + fin del rango)
+            var mapaFechasEje = {};
+            mapaFechasEje[desde] = true;
+            victoriasRango.forEach(function (v) {
+                var d = v.fecha_dia || v.fecha_victoria.slice(0, 10);
+                mapaFechasEje[d] = true;
+            });
+            mapaFechasEje[hasta] = true;
+            var fechasEje = Object.keys(mapaFechasEje).sort();
+
+            // Calcular series acumulativas empezando en 0 al inicio del rango
+            var maxAcumulado = 1;
+            ordenJugadores.forEach(function (u) {
+                var info = mapaJugadores[u];
+                var acum = 0;
+                info.serie = fechasEje.map(function (f, i) {
+                    if (i === 0 && f === desde && !info.porDia[f]) {
+                        return 0;
+                    }
+                    acum += (info.porDia[f] || 0);
+                    return acum;
+                });
+                if (!jugadoresOcultos[u] && acum > maxAcumulado) {
+                    maxAcumulado = acum;
+                }
+            });
+
+            // Ajustar dimensiones reales del canvas al contenedor
+            var anchoContenedor = canvasGrafico.parentElement.clientWidth || 720;
+            var altoCanvas = 340;
+            canvasGrafico.width = anchoContenedor;
+            canvasGrafico.height = altoCanvas;
+
+            var ctx = canvasGrafico.getContext('2d');
+            ctx.clearRect(0, 0, anchoContenedor, altoCanvas);
+
+            // Fondo pergamino claro
+            ctx.fillStyle = '#f7f1df';
+            ctx.fillRect(0, 0, anchoContenedor, altoCanvas);
+
+            var padIzq = 48;
+            var padDer = 24;
+            var padArr = 22;
+            var padAba = 46;
+            var wUtil = Math.max(100, anchoContenedor - padIzq - padDer);
+            var hUtil = Math.max(80, altoCanvas - padArr - padAba);
+
+            // Rejilla horizontal y etiquetas del eje Y (victorias enteras)
+            var pasosY = Math.min(maxAcumulado, 6);
+            ctx.font = 'bold 12px Georgia, serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+
+            for (var i = 0; i <= pasosY; i++) {
+                var valY = Math.round((maxAcumulado / pasosY) * i);
+                var posY = padArr + hUtil - (valY / maxAcumulado) * hUtil;
+
+                ctx.strokeStyle = '#d5c496';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(padIzq, posY);
+                ctx.lineTo(padIzq + wUtil, posY);
+                ctx.stroke();
+
+                ctx.fillStyle = '#362417';
+                ctx.fillText(String(valY), padIzq - 8, posY);
+            }
+
+            // Etiquetas del eje X (fechas)
+            var numFechas = fechasEje.length;
+            var saltoX = Math.max(1, Math.ceil(numFechas / 7));
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            fechasEje.forEach(function (f, idx) {
+                var posX = numFechas === 1 ? (padIzq + wUtil / 2) : (padIzq + (idx / (numFechas - 1)) * wUtil);
+                if (idx % saltoX === 0 || idx === numFechas - 1) {
+                    ctx.fillStyle = '#362417';
+                    ctx.fillText(formatearFechaCorta(f), posX, padArr + hUtil + 10);
+                }
+            });
+
+            // Ejes principales en madera oscura
+            ctx.strokeStyle = '#362417';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(padIzq, padArr);
+            ctx.lineTo(padIzq, padArr + hUtil);
+            ctx.lineTo(padIzq + wUtil, padArr + hUtil);
+            ctx.stroke();
+
+            // Dibujar líneas acumulativas y puntos por cada jugador visible
+            ordenJugadores.forEach(function (u) {
+                if (jugadoresOcultos[u]) return;
+                var info = mapaJugadores[u];
+                ctx.strokeStyle = info.color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+
+                info.serie.forEach(function (val, idx) {
+                    var x = numFechas === 1 ? (padIzq + wUtil / 2) : (padIzq + (idx / (numFechas - 1)) * wUtil);
+                    var y = padArr + hUtil - (val / maxAcumulado) * hUtil;
+                    if (idx === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+
+                // Puntos en cada vértice
+                ctx.fillStyle = info.color;
+                info.serie.forEach(function (val, idx) {
+                    var x = numFechas === 1 ? (padIzq + wUtil / 2) : (padIzq + (idx / (numFechas - 1)) * wUtil);
+                    var y = padArr + hUtil - (val / maxAcumulado) * hUtil;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            });
+        }
+
+        // Inicializar con el plazo por defecto (Último año: 1y)
+        aplicarPlazoRapido(selectRangoRapido ? selectRangoRapido.value : '1y');
+        renderizarGraficoVictorias();
+
+        if (selectRangoRapido) {
+            selectRangoRapido.addEventListener('change', function () {
+                if (selectRangoRapido.value !== 'custom') {
+                    aplicarPlazoRapido(selectRangoRapido.value);
+                    renderizarGraficoVictorias();
+                }
+            });
+        }
+
+        if (inputFechaDesde) {
+            inputFechaDesde.addEventListener('change', function () {
+                if (selectRangoRapido) selectRangoRapido.value = 'custom';
+                renderizarGraficoVictorias();
+            });
+        }
+
+        if (inputFechaHasta) {
+            inputFechaHasta.addEventListener('change', function () {
+                if (selectRangoRapido) selectRangoRapido.value = 'custom';
+                renderizarGraficoVictorias();
+            });
+        }
+
+        window.addEventListener('resize', renderizarGraficoVictorias);
+    }
+
     // =========================================================================
     // 10. Persistencia universal de posición de scroll y estado (Ludoteca, Admin, Votaciones, Juegos, etc.)
     // =========================================================================
