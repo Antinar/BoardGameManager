@@ -950,6 +950,21 @@ document.addEventListener('DOMContentLoaded', function () {
             return partes[2] + '/' + partes[1] + '/' + partes[0].slice(2);
         }
 
+        function fechaIsoADiasUtc(fechaIso) {
+            var p = fechaIso.split('-');
+            return Math.round(Date.UTC(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)) / 86400000);
+        }
+
+        function diasUtcAFechaIso(diasUtc) {
+            var d = new Date(diasUtc * 86400000);
+            var y = d.getUTCFullYear();
+            var m = String(d.getUTCMonth() + 1);
+            if (m.length < 2) m = '0' + m;
+            var day = String(d.getUTCDate());
+            if (day.length < 2) day = '0' + day;
+            return y + '-' + m + '-' + day;
+        }
+
         function renderizarGraficoVictorias() {
             if (!canvasGrafico) return;
             var desde = inputFechaDesde && inputFechaDesde.value ? inputFechaDesde.value : restarMeses(fechaHoyStr, 12);
@@ -1024,28 +1039,43 @@ document.addEventListener('DOMContentLoaded', function () {
             canvasGrafico.style.display = 'block';
             if (msgSinVictoriasGrafico) msgSinVictoriasGrafico.style.display = 'none';
 
-            // Construir lista de fechas clave en el eje X (inicio del rango + días con victorias + fin del rango)
-            var mapaFechasEje = {};
-            mapaFechasEje[desde] = true;
-            victoriasRango.forEach(function (v) {
-                var d = v.fecha_dia || v.fecha_victoria.slice(0, 10);
-                mapaFechasEje[d] = true;
-            });
-            mapaFechasEje[hasta] = true;
-            var fechasEje = Object.keys(mapaFechasEje).sort();
+            // Escala temporal lineal real día a día entre [desde, hasta]
+            var diaInicio = fechaIsoADiasUtc(desde);
+            var diaFin = fechaIsoADiasUtc(hasta);
+            var totalDiasRango = Math.max(0, diaFin - diaInicio);
 
-            // Calcular series acumulativas empezando en 0 al inicio del rango
+            // Calcular series acumulativas reales día a día empezando en 0
             var maxAcumulado = 1;
             ordenJugadores.forEach(function (u) {
                 var info = mapaJugadores[u];
                 var acum = 0;
-                info.serie = fechasEje.map(function (f, i) {
-                    if (i === 0 && f === desde && !info.porDia[f]) {
-                        return 0;
+                var puntosJugador = [];
+                var puntosVictoria = [];
+
+                // Si el primer día ya tuvo victorias, pintamos el arranque en 0 para que se vea el salto inicial
+                var fInicio = diasUtcAFechaIso(diaInicio);
+                if (info.porDia[fInicio]) {
+                    puntosJugador.push({ offset: 0, valor: 0 });
+                }
+
+                for (var dOffset = 0; dOffset <= totalDiasRango; dOffset++) {
+                    var fActual = diasUtcAFechaIso(diaInicio + dOffset);
+                    var ganadasHoy = info.porDia[fActual] || 0;
+                    if (ganadasHoy > 0 && dOffset > 0) {
+                        // Mantener el nivel anterior hasta el día exacto anterior a la subida
+                        puntosJugador.push({ offset: dOffset - 1, valor: acum });
                     }
-                    acum += (info.porDia[f] || 0);
-                    return acum;
-                });
+                    acum += ganadasHoy;
+                    if (dOffset === 0 || dOffset === totalDiasRango || ganadasHoy > 0) {
+                        puntosJugador.push({ offset: dOffset, valor: acum });
+                    }
+                    if (ganadasHoy > 0) {
+                        puntosVictoria.push({ offset: dOffset, valor: acum });
+                    }
+                }
+
+                info.puntosLinea = puntosJugador;
+                info.puntosVictoria = puntosVictoria;
                 if (!jugadoresOcultos[u] && acum > maxAcumulado) {
                     maxAcumulado = acum;
                 }
@@ -1092,19 +1122,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 ctx.fillText(String(valY), padIzq - 8, posY);
             }
 
-            // Etiquetas del eje X (fechas)
-            var numFechas = fechasEje.length;
-            var saltoX = Math.max(1, Math.ceil(numFechas / 7));
+            function calcularPosX(offsetDias) {
+                if (totalDiasRango === 0) return padIzq + wUtil / 2;
+                return padIzq + (offsetDias / totalDiasRango) * wUtil;
+            }
+
+            // Marcas temporales distribuidas uniformemente en el eje X
+            var numMarcasX = totalDiasRango === 0 ? 1 : Math.min(7, totalDiasRango + 1);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
 
-            fechasEje.forEach(function (f, idx) {
-                var posX = numFechas === 1 ? (padIzq + wUtil / 2) : (padIzq + (idx / (numFechas - 1)) * wUtil);
-                if (idx % saltoX === 0 || idx === numFechas - 1) {
-                    ctx.fillStyle = '#362417';
-                    ctx.fillText(formatearFechaCorta(f), posX, padArr + hUtil + 10);
-                }
-            });
+            for (var m = 0; m < numMarcasX; m++) {
+                var offsetMarca = numMarcasX === 1 ? 0 : Math.round((m / (numMarcasX - 1)) * totalDiasRango);
+                var posXMarca = calcularPosX(offsetMarca);
+                var fechaMarcaIso = diasUtcAFechaIso(diaInicio + offsetMarca);
+
+                // Pequeña marca vertical en el eje X
+                ctx.strokeStyle = '#362417';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(posXMarca, padArr + hUtil);
+                ctx.lineTo(posXMarca, padArr + hUtil + 5);
+                ctx.stroke();
+
+                ctx.fillStyle = '#362417';
+                ctx.fillText(formatearFechaCorta(fechaMarcaIso), posXMarca, padArr + hUtil + 9);
+            }
 
             // Ejes principales en madera oscura
             ctx.strokeStyle = '#362417';
@@ -1115,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', function () {
             ctx.lineTo(padIzq + wUtil, padArr + hUtil);
             ctx.stroke();
 
-            // Dibujar líneas acumulativas y puntos por cada jugador visible
+            // Dibujar líneas acumulativas reales día a día y vértices por cada jugador visible
             ordenJugadores.forEach(function (u) {
                 if (jugadoresOcultos[u]) return;
                 var info = mapaJugadores[u];
@@ -1123,9 +1166,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 ctx.lineWidth = 3;
                 ctx.beginPath();
 
-                info.serie.forEach(function (val, idx) {
-                    var x = numFechas === 1 ? (padIzq + wUtil / 2) : (padIzq + (idx / (numFechas - 1)) * wUtil);
-                    var y = padArr + hUtil - (val / maxAcumulado) * hUtil;
+                info.puntosLinea.forEach(function (pt, idx) {
+                    var x = calcularPosX(pt.offset);
+                    var y = padArr + hUtil - (pt.valor / maxAcumulado) * hUtil;
                     if (idx === 0) {
                         ctx.moveTo(x, y);
                     } else {
@@ -1134,11 +1177,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 ctx.stroke();
 
-                // Puntos en cada vértice
+                // Puntos en los días en que hubo victoria (y extremo final)
                 ctx.fillStyle = info.color;
-                info.serie.forEach(function (val, idx) {
-                    var x = numFechas === 1 ? (padIzq + wUtil / 2) : (padIzq + (idx / (numFechas - 1)) * wUtil);
-                    var y = padArr + hUtil - (val / maxAcumulado) * hUtil;
+                info.puntosVictoria.forEach(function (pt) {
+                    var x = calcularPosX(pt.offset);
+                    var y = padArr + hUtil - (pt.valor / maxAcumulado) * hUtil;
                     ctx.beginPath();
                     ctx.arc(x, y, 4, 0, Math.PI * 2);
                     ctx.fill();
