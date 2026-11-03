@@ -10,10 +10,21 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- -------------------------------------------------------------------------
 -- 1. Tabla Persona
 -- -------------------------------------------------------------------------
+DROP TABLE IF EXISTS `Participante_Personaje_Asimetrico`;
+DROP TABLE IF EXISTS `Participante_Asimetrico`;
+DROP TABLE IF EXISTS `Partida_Asimetrica`;
+DROP TABLE IF EXISTS `Personaje_Asimetrico`;
+DROP TABLE IF EXISTS `Juego_Asimetrico`;
+DROP TABLE IF EXISTS `Participante_Root`;
+DROP TABLE IF EXISTS `Partida_Root`;
+DROP TABLE IF EXISTS `Root_Mazo`;
+DROP TABLE IF EXISTS `Root_Mapa`;
+DROP TABLE IF EXISTS `Root_Faccion`;
 DROP TABLE IF EXISTS `Resenya`;
 DROP TABLE IF EXISTS `Juego_Propietario`;
 DROP TABLE IF EXISTS `Voto`;
 DROP TABLE IF EXISTS `Votacion`;
+DROP TABLE IF EXISTS `Victoria_Participante`;
 DROP TABLE IF EXISTS `Victoria`;
 DROP TABLE IF EXISTS `Persona_Juego`;
 DROP TABLE IF EXISTS `Juego`;
@@ -81,12 +92,29 @@ CREATE TABLE `Victoria` (
   `username` VARCHAR(50) NOT NULL,
   `NombreJuego` VARCHAR(120) NOT NULL,
   `fecha_victoria` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `duracion_minutos` INT NULL DEFAULT NULL,
+  `puntuacion` VARCHAR(100) NULL DEFAULT NULL,
   PRIMARY KEY (`id_victoria`),
   CONSTRAINT `fk_victoria_persona`
     FOREIGN KEY (`username`) REFERENCES `Persona` (`username`)
     ON UPDATE CASCADE ON DELETE CASCADE,
   CONSTRAINT `fk_victoria_juego`
     FOREIGN KEY (`NombreJuego`) REFERENCES `Juego` (`NombreJuego`)
+    ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 4.B. Tabla Victoria_Participante (Participantes de cada partida)
+-- -------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Victoria_Participante` (
+  `id_victoria` INT NOT NULL,
+  `username` VARCHAR(50) NOT NULL,
+  PRIMARY KEY (`id_victoria`, `username`),
+  CONSTRAINT `fk_vp_victoria`
+    FOREIGN KEY (`id_victoria`) REFERENCES `Victoria` (`id_victoria`)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT `fk_vp_persona`
+    FOREIGN KEY (`username`) REFERENCES `Persona` (`username`)
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -125,6 +153,198 @@ CREATE TABLE `Voto` (
     FOREIGN KEY (`NombreJuego`) REFERENCES `Juego` (`NombreJuego`)
     ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 6.B. Tablas del módulo Root (catálogos y partidas)
+-- -------------------------------------------------------------------------
+CREATE TABLE `Root_Faccion` (
+  `id_faccion` INT NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(100) NOT NULL UNIQUE,
+  `activa` TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_faccion`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `Root_Mapa` (
+  `id_mapa` INT NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(100) NOT NULL UNIQUE,
+  `activo` TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_mapa`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `Root_Mazo` (
+  `id_mazo` INT NOT NULL AUTO_INCREMENT,
+  `nombre` VARCHAR(100) NOT NULL UNIQUE,
+  `activo` TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_mazo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `Partida_Root` (
+  `id_partida_root` INT NOT NULL AUTO_INCREMENT,
+  `fecha_partida` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `id_mapa` INT NOT NULL,
+  `id_mazo` INT NOT NULL,
+  `condicion_victoria` ENUM('30_puntos', 'dominancia') NOT NULL DEFAULT '30_puntos',
+  `con_secuaces` TINYINT(1) NOT NULL DEFAULT 0,
+  `duracion_minutos` INT NULL DEFAULT NULL,
+  `notas` VARCHAR(255) NULL DEFAULT NULL,
+  PRIMARY KEY (`id_partida_root`),
+  CONSTRAINT `fk_proot_mapa` FOREIGN KEY (`id_mapa`) REFERENCES `Root_Mapa` (`id_mapa`) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT `fk_proot_mazo` FOREIGN KEY (`id_mazo`) REFERENCES `Root_Mazo` (`id_mazo`) ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `Participante_Root` (
+  `id_partida_root` INT NOT NULL,
+  `username` VARCHAR(50) NOT NULL,
+  `id_faccion` INT NOT NULL,
+  `ha_ganado` TINYINT(1) NOT NULL DEFAULT 0,
+  `puntos` INT NULL DEFAULT NULL,
+  PRIMARY KEY (`id_partida_root`, `username`),
+  CONSTRAINT `fk_partroot_partida` FOREIGN KEY (`id_partida_root`) REFERENCES `Partida_Root` (`id_partida_root`) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT `fk_partroot_persona` FOREIGN KEY (`username`) REFERENCES `Persona` (`username`) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT `fk_partroot_faccion` FOREIGN KEY (`id_faccion`) REFERENCES `Root_Faccion` (`id_faccion`) ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Catálogos iniciales del módulo Root (ampliables desde la aplicación)
+INSERT IGNORE INTO `Root_Faccion` (`nombre`) VALUES
+('Marquesado'),
+('Nido de Águilas'),
+('Alianza del Bosque'),
+('Vagabundo (1)'),
+('Vagabundo (2)'),
+('Culto de los Lagartos'),
+('Compañía del Río'),
+('Ducado Subterráneo'),
+('Conspiración Córvida'),
+('Señor de los Cientos'),
+('Guardianes de Hierro');
+
+INSERT IGNORE INTO `Root_Mapa` (`nombre`) VALUES
+('Otoño'),
+('Invierno'),
+('Lago'),
+('Montaña');
+
+INSERT IGNORE INTO `Root_Mazo` (`nombre`) VALUES
+('Estándar (Base)'),
+('Exiliados y Partisanos (Militantes)');
+
+-- -------------------------------------------------------------------------
+-- 6.C. Tablas del hub de juegos asimétricos (catálogos y partidas)
+-- -------------------------------------------------------------------------
+CREATE TABLE `Juego_Asimetrico` (
+  `codigo_juego` VARCHAR(40) NOT NULL,
+  `nombre_visible` VARCHAR(100) NOT NULL,
+  `num_personajes_por_jugador` TINYINT NOT NULL DEFAULT 1,
+  PRIMARY KEY (`codigo_juego`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `Personaje_Asimetrico` (
+  `id_personaje` INT NOT NULL AUTO_INCREMENT,
+  `codigo_juego` VARCHAR(40) NOT NULL,
+  `nombre_personaje` VARCHAR(100) NOT NULL,
+  `activo` TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_personaje`),
+  UNIQUE KEY `uk_pers_asimetrico_juego_nombre` (`codigo_juego`, `nombre_personaje`),
+  CONSTRAINT `fk_pers_asimetrico_juego` FOREIGN KEY (`codigo_juego`)
+    REFERENCES `Juego_Asimetrico` (`codigo_juego`) ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `Partida_Asimetrica` (
+  `id_partida_asimetrica` INT NOT NULL AUTO_INCREMENT,
+  `codigo_juego` VARCHAR(40) NOT NULL,
+  `fecha_partida` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `duracion_minutos` INT NULL DEFAULT NULL,
+  `notas` VARCHAR(255) NULL DEFAULT NULL,
+  PRIMARY KEY (`id_partida_asimetrica`),
+  CONSTRAINT `fk_part_asimetrico_juego` FOREIGN KEY (`codigo_juego`)
+    REFERENCES `Juego_Asimetrico` (`codigo_juego`) ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `Participante_Asimetrico` (
+  `id_participante_asimetrico` INT NOT NULL AUTO_INCREMENT,
+  `id_partida_asimetrica` INT NOT NULL,
+  `username` VARCHAR(50) NOT NULL,
+  `ha_ganado` TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id_participante_asimetrico`),
+  UNIQUE KEY `uk_partida_usuario` (`id_partida_asimetrica`, `username`),
+  CONSTRAINT `fk_partic_asimetrico_cabecera` FOREIGN KEY (`id_partida_asimetrica`)
+    REFERENCES `Partida_Asimetrica` (`id_partida_asimetrica`) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT `fk_partic_asimetrico_persona` FOREIGN KEY (`username`)
+    REFERENCES `Persona` (`username`) ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `Participante_Personaje_Asimetrico` (
+  `id_participante_asimetrico` INT NOT NULL,
+  `id_personaje` INT NOT NULL,
+  PRIMARY KEY (`id_participante_asimetrico`, `id_personaje`),
+  CONSTRAINT `fk_ppa_participante` FOREIGN KEY (`id_participante_asimetrico`)
+    REFERENCES `Participante_Asimetrico` (`id_participante_asimetrico`) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT `fk_ppa_personaje` FOREIGN KEY (`id_personaje`)
+    REFERENCES `Personaje_Asimetrico` (`id_personaje`) ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Catálogos iniciales del hub de juegos asimétricos (ampliables desde la aplicación)
+INSERT IGNORE INTO `Juego_Asimetrico` (`codigo_juego`, `nombre_visible`, `num_personajes_por_jugador`) VALUES
+('villainous_disney', 'Villainous: Disney', 1),
+('villainous_marvel', 'Villainous: Marvel', 1),
+('villainous_star_wars', 'Villainous: Star Wars', 1),
+('tag_team', 'Tag Team (Scorpion Masqué)', 2);
+
+INSERT IGNORE INTO `Personaje_Asimetrico` (`codigo_juego`, `nombre_personaje`) VALUES
+-- Villainous: Disney (22)
+('villainous_disney', 'Maléfica'),
+('villainous_disney', 'Úrsula'),
+('villainous_disney', 'Jafar'),
+('villainous_disney', 'Príncipe Juan'),
+('villainous_disney', 'Reina de Corazones'),
+('villainous_disney', 'Capitán Garfio'),
+('villainous_disney', 'Hades'),
+('villainous_disney', 'Dr. Facilier'),
+('villainous_disney', 'Reina Malvada'),
+('villainous_disney', 'Scar'),
+('villainous_disney', 'Yzma'),
+('villainous_disney', 'Ratigan'),
+('villainous_disney', 'Cruella de Vil'),
+('villainous_disney', 'Madre Gothel'),
+('villainous_disney', 'Pete'),
+('villainous_disney', 'Lady Tremaine'),
+('villainous_disney', 'El Rey del Mal'),
+('villainous_disney', 'Gastón'),
+('villainous_disney', 'Síndrome'),
+('villainous_disney', 'Madam Mim'),
+('villainous_disney', 'Lotso'),
+('villainous_disney', 'Oogie Boogie'),
+-- Villainous: Marvel (12)
+('villainous_marvel', 'Thanos'),
+('villainous_marvel', 'Hela'),
+('villainous_marvel', 'Killmonger'),
+('villainous_marvel', 'Ultrón'),
+('villainous_marvel', 'Taskmaster'),
+('villainous_marvel', 'Loki'),
+('villainous_marvel', 'M.O.D.O.K.'),
+('villainous_marvel', 'Madame Máscara'),
+('villainous_marvel', 'Venom'),
+('villainous_marvel', 'Doctor Octopus'),
+('villainous_marvel', 'Titania'),
+('villainous_marvel', 'Kang el Conquistador'),
+-- Villainous: Star Wars (10)
+('villainous_star_wars', 'Darth Vader'),
+('villainous_star_wars', 'Kylo Ren'),
+('villainous_star_wars', 'General Grievous'),
+('villainous_star_wars', 'Moff Gideon'),
+('villainous_star_wars', 'Asajj Ventress'),
+('villainous_star_wars', 'Boba Fett'),
+('villainous_star_wars', 'Cad Bane'),
+('villainous_star_wars', 'Séptima Hermana'),
+('villainous_star_wars', 'Darth Maul'),
+('villainous_star_wars', 'Capitana Phasma'),
+-- Tag Team (6)
+('tag_team', 'Luchador Alpha'),
+('tag_team', 'Luchador Beta'),
+('tag_team', 'Luchador Gamma'),
+('tag_team', 'Luchador Delta'),
+('tag_team', 'Luchador Épsilon'),
+('tag_team', 'Luchador Zeta');
 
 SET FOREIGN_KEY_CHECKS = 1;
 

@@ -1080,6 +1080,155 @@ body {
     color: #8c2d19;
 }
 
+/* =========================================================================
+   Leaderboard: selector Tabla / Gráfico, gráfico de barras rústico y
+   paneles de detalle / edición de partidas (estética Taberna Clásica)
+   ========================================================================= */
+
+.selector-vista-leaderboard {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.selector-vista-leaderboard .select-taberna {
+    width: auto;
+    min-width: 160px;
+}
+
+.grafico-barras-taberna {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: #f2e8c9;
+    border: 2px solid #4a3219;
+    border-radius: 4px;
+    padding: 14px 16px;
+}
+
+.grafico-barras-taberna.panel-oculto {
+    display: none;
+}
+
+.grafico-fila {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.grafico-etiqueta {
+    flex: 0 0 150px;
+    max-width: 150px;
+    font-weight: bold;
+    color: #23170f;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.grafico-pista {
+    flex: 1 1 auto;
+    height: 18px;
+    background-color: #dfd1a7;
+    border: 1px solid #4a3219;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.grafico-barra {
+    height: 100%;
+    background-color: #a67c2e;
+    border-right: 1px solid #4a3219;
+}
+
+.grafico-fila:first-child .grafico-barra {
+    background-color: #8c2d19;
+}
+
+.grafico-valor {
+    flex: 0 0 auto;
+    min-width: 90px;
+    text-align: right;
+    font-weight: bold;
+    color: #362417;
+    font-size: 0.9rem;
+}
+
+.tabla-taberna .fila-detalle-partida td {
+    background-color: #f2e8c9;
+    padding: 12px 14px;
+    border-top: 1px dashed #a67c2e;
+}
+
+.detalle-partida {
+    color: #23170f;
+}
+
+.detalle-partida p {
+    margin: 4px 0;
+    font-size: 0.93rem;
+}
+
+.lista-participantes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 6px 0 10px;
+}
+
+.panel-editar-partida {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 2px solid #4a3219;
+}
+
+.panel-editar-partida-form {
+    margin-top: 10px;
+    padding: 12px;
+    background-color: #dfd1a7;
+    border: 1px solid #4a3219;
+    border-radius: 2px;
+}
+
+.form-editar-partida .grupo-form {
+    margin-bottom: 10px;
+}
+
+.select-participantes {
+    height: auto;
+    min-height: 90px;
+    padding: 4px;
+}
+
+@media (max-width: 640px) {
+    .grafico-etiqueta {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .grafico-fila {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .grafico-pista {
+        flex: 1 1 auto;
+    }
+
+    .grafico-valor {
+        flex: 0 0 100%;
+        min-width: 0;
+        text-align: left;
+    }
+
+    .selector-vista-leaderboard .select-taberna {
+        width: 100%;
+    }
+}
+
+
 @media (max-width: 768px) {
     .taberna-titulo-bloque {
         justify-content: center;
@@ -1366,4 +1515,131 @@ body {
     width: 100%;
     border: 2px solid #362417;
     background-color: #f7f1df;
+}
+
+/* =========================================================================
+   LEADERBOARD: PESTAÑAS Y PANEL DE ROOT
+   ========================================================================= */
+.leaderboard-pestanas {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.root-resumen {
+    margin-bottom: 18px;
+}
+
+.root-participante-fila {
+    display: grid;
+    grid-template-columns: minmax(160px, 2fr) minmax(160px, 2fr) 90px 110px 90px;
+    gap: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 2px solid #4a3219;
+    border-radius: 2px;
+    background-color: #f2e8c9;
+    align-items: end;
+}
+
+.root-participante-fila .grupo-form {
+    margin: 0;
+}
+
+.root-participante-fila label {
+    font-size: 0.82rem;
+    font-weight: bold;
+    color: #4a3219;
+}
+
+.root-participante-acciones {
+    display: flex;
+    align-items: end;
+    justify-content: flex-end;
+}
+
+.tabla-root-scroll {
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+@media (max-width: 850px) {
+    .root-participante-fila {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .root-participante-acciones {
+        justify-content: flex-start;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Juegos Asimétricos (leaderboard.php)
+   --------------------------------------------------------------------------- */
+.selector-asimetrico {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.asimetrico-info {
+    margin: 10px 0 0;
+}
+
+.asimetrico-participante-fila {
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 2px solid #4a3219;
+    border-radius: 2px;
+    background-color: #f2e8c9;
+    align-items: end;
+}
+
+.asimetrico-participante-fila.con-1-personaje {
+    grid-template-columns: minmax(160px, 2fr) minmax(160px, 2fr) 110px 90px;
+}
+
+.asimetrico-participante-fila.con-2-personajes {
+    grid-template-columns: minmax(150px, 2fr) repeat(2, minmax(140px, 2fr)) 110px 90px;
+}
+
+.asimetrico-participante-fila .grupo-form {
+    margin: 0;
+}
+
+.asimetrico-participante-fila label {
+    font-size: 0.82rem;
+    font-weight: bold;
+    color: #4a3219;
+}
+
+.asimetrico-participante-acciones {
+    display: flex;
+    align-items: end;
+    justify-content: flex-end;
+}
+
+.tabla-asimetrica-scroll {
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+@media (max-width: 850px) {
+    .asimetrico-participante-fila {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .asimetrico-participante-acciones {
+        justify-content: flex-start;
+    }
+
+    .selector-asimetrico {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }

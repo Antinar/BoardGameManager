@@ -5,12 +5,65 @@ requerirLogin($pdo);
 $mensajeExito = '';
 $mensajeError = '';
 $usuarioActual = $_SESSION['username'];
+$esAdmin = isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin';
 
 // Mapa oficial de calificaciones (0 a 10)
 $escalaCalificaciones = obtenerEscalaCalificaciones();
 
 // Juego seleccionado por GET (si el usuario ha clicado en un cuadrado)
 $juegoSeleccionadoNombre = isset($_GET['juego']) ? trim($_GET['juego']) : '';
+
+// Edición rápida de la ficha del juego (solo administradores)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'editar_ficha_juego') {
+    if (!$esAdmin) {
+        $mensajeError = 'Solo el Tabernero Mayor puede editar la ficha del juego.';
+    } else {
+        $nombreOriginal = isset($_POST['nombre_original']) ? trim($_POST['nombre_original']) : '';
+        $nuevoNombre = isset($_POST['NombreJuego']) ? trim($_POST['NombreJuego']) : '';
+        $minJugadores = max(1, (int)(isset($_POST['min_jugadores']) ? $_POST['min_jugadores'] : 1));
+        $maxJugadores = max($minJugadores, (int)(isset($_POST['max_jugadores']) ? $_POST['max_jugadores'] : $minJugadores));
+        $descripcion = obtenerTextoPostSeguro('descripcion');
+        $descripcion = ($descripcion !== '') ? $descripcion : null;
+        $reglas = obtenerTextoPostSeguro('reglas');
+        $reglas = ($reglas !== '') ? $reglas : null;
+
+        if ($nombreOriginal === '' || $nuevoNombre === '') {
+            $mensajeError = 'El nombre del juego es obligatorio.';
+        } elseif (mb_strlen($nuevoNombre) > 120) {
+            $mensajeError = 'El nombre del juego no puede superar los 120 caracteres.';
+        } elseif ($nuevoNombre !== $nombreOriginal) {
+            $stmtExiste = $pdo->prepare("SELECT COUNT(*) FROM Juego WHERE NombreJuego = ?");
+            $stmtExiste->execute([$nuevoNombre]);
+            if ((int)$stmtExiste->fetchColumn() > 0) {
+                $mensajeError = 'Ya existe un juego con ese nombre en la taberna.';
+            }
+        }
+
+        if ($mensajeError === '') {
+            try {
+                $pdo->beginTransaction();
+                $stmtUpdate = $pdo->prepare("
+                    UPDATE Juego
+                    SET NombreJuego = ?, min_jugadores = ?, max_jugadores = ?, descripcion = ?, reglas = ?
+                    WHERE NombreJuego = ?
+                ");
+                $stmtUpdate->execute([$nuevoNombre, $minJugadores, $maxJugadores, $descripcion, $reglas, $nombreOriginal]);
+                $pdo->commit();
+
+                if ($nuevoNombre !== $nombreOriginal) {
+                    $juegoSeleccionadoNombre = $nuevoNombre;
+                }
+                $mensajeExito = 'Ficha del juego actualizada correctamente.';
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                error_log('Error al editar ficha de juego: ' . $e->getMessage());
+                $mensajeError = 'No se ha podido actualizar la ficha del juego. Inténtalo de nuevo.';
+            }
+        }
+    }
+}
 
 // Procesar guardado o actualización de reseña del usuario actual
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'guardar_resenya') {
@@ -221,8 +274,54 @@ if ($juegoDetalle) {
                 <h2 class="seccion-titulo" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
                     <?php echo h($nombreJ); ?>
                 </h2>
-                <a href="ludoteca.php" class="btn btn-bronce btn-pequeno">&larr; Volver a la Ludoteca</a>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <?php if ($esAdmin): ?>
+                        <button type="button"
+                                class="btn btn-bronce btn-pequeno"
+                                data-toggle-panel="panel-editar-ficha-<?php echo $hashJ; ?>"
+                                aria-expanded="false">
+                            Editar Ficha de Juego
+                        </button>
+                    <?php endif; ?>
+                    <a href="ludoteca.php" class="btn btn-bronce btn-pequeno">&larr; Volver a la Ludoteca</a>
+                </div>
             </div>
+
+            <?php if ($esAdmin): ?>
+                <div id="panel-editar-ficha-<?php echo $hashJ; ?>" class="pergamino-secundario panel-editar-ficha panel-oculto">
+                    <h3 class="seccion-subtitulo">Editar Ficha de Juego (Admin)</h3>
+                    <form method="POST" action="ludoteca.php?juego=<?php echo urlencode($nombreJ); ?>" data-form-juego-seguro>
+                        <input type="hidden" name="accion" value="editar_ficha_juego">
+                        <input type="hidden" name="nombre_original" value="<?php echo h($nombreJ); ?>">
+                        <div class="grid-dos-columnas">
+                            <div class="grupo-form">
+                                <label for="edit_nombre_<?php echo $hashJ; ?>">Nombre del Juego:</label>
+                                <input type="text" id="edit_nombre_<?php echo $hashJ; ?>" name="NombreJuego" class="input-taberna" value="<?php echo h($nombreJ); ?>" required maxlength="120">
+                            </div>
+                            <div class="grupo-form">
+                                <label for="edit_min_<?php echo $hashJ; ?>">Mínimo de Jugadores:</label>
+                                <input type="number" id="edit_min_<?php echo $hashJ; ?>" name="min_jugadores" class="input-taberna" value="<?php echo (int)$juegoDetalle['min_jugadores']; ?>" required min="1" max="99">
+                            </div>
+                            <div class="grupo-form">
+                                <label for="edit_max_<?php echo $hashJ; ?>">Máximo de Jugadores:</label>
+                                <input type="number" id="edit_max_<?php echo $hashJ; ?>" name="max_jugadores" class="input-taberna" value="<?php echo (int)$juegoDetalle['max_jugadores']; ?>" required min="1" max="99">
+                            </div>
+                        </div>
+                        <div class="grupo-form">
+                            <label for="edit_desc_<?php echo $hashJ; ?>">Descripción:</label>
+                            <textarea id="edit_desc_<?php echo $hashJ; ?>" name="descripcion" class="input-taberna" rows="3" data-campo-seguro="descripcion"><?php echo h((string)$juegoDetalle['descripcion']); ?></textarea>
+                            <input type="hidden" name="descripcion_hex" value="">
+                        </div>
+                        <div class="grupo-form">
+                            <label for="edit_reglas_<?php echo $hashJ; ?>">Reglas / Notas de partida:</label>
+                            <textarea id="edit_reglas_<?php echo $hashJ; ?>" name="reglas" class="input-taberna" rows="4" data-campo-seguro="reglas"><?php echo h((string)$juegoDetalle['reglas']); ?></textarea>
+                            <input type="hidden" name="reglas_hex" value="">
+                        </div>
+                        <p style="font-style:italic; color:#5a4634; margin-bottom:10px;">La portada se cambia desde el Panel de Administración.</p>
+                        <button type="submit" class="btn btn-exito">Guardar Ficha del Juego</button>
+                    </form>
+                </div>
+            <?php endif; ?>
 
             <div class="ludoteca-detalle-superior">
                 <div class="ludoteca-detalle-imagen">
@@ -507,6 +606,6 @@ if ($juegoDetalle) {
     <?php endif; ?>
 </main>
 
-<script src="app.js"></script>
+<script src="app.js?v=<?php echo @filemtime(__DIR__ . '/app.js'); ?>"></script>
 </body>
 </html>

@@ -41,6 +41,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // 1.A. Persistencia de pestañas del leaderboard
+    var tabsLeaderboard = document.querySelectorAll('[data-tab-group="leaderboard"]');
+    if (tabsLeaderboard.length) {
+        var claveTabLeaderboard = 'taberna_leaderboard_tab';
+        var tabGuardada = null;
+        try { tabGuardada = sessionStorage.getItem(claveTabLeaderboard); } catch (e) {}
+        if (tabGuardada) {
+            var botonGuardado = document.querySelector('[data-tab-group="leaderboard"][data-tab-target="' + tabGuardada + '"]');
+            if (botonGuardado) botonGuardado.click();
+        }
+        tabsLeaderboard.forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                try { sessionStorage.setItem(claveTabLeaderboard, boton.getAttribute('data-tab-target')); } catch (e) {}
+            });
+        });
+    }
+
     // 2. Previsualización de imagen antes de subirla
     var inputsImagen = document.querySelectorAll('input[type="file"][data-preview-target]');
     inputsImagen.forEach(function (input) {
@@ -748,6 +765,95 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     });
+
+    // 9.A. Paneles desplegables genéricos ([data-toggle-panel]) en leaderboard.php
+    var botonesTogglePanel = document.querySelectorAll('[data-toggle-panel]');
+    botonesTogglePanel.forEach(function (boton) {
+        boton.addEventListener('click', function (evento) {
+            evento.preventDefault();
+            var idDestino = boton.getAttribute('data-toggle-panel');
+            if (!idDestino) return;
+            var panel = document.getElementById(idDestino);
+            if (!panel) return;
+
+            var oculto = panel.classList.toggle('panel-oculto');
+            boton.setAttribute('aria-expanded', oculto ? 'false' : 'true');
+        });
+    });
+
+    // 9.A bis. Selector Tabla / Gráfico de la clasificación
+    var selectorVistaLeaderboard = document.getElementById('vista_leaderboard');
+    if (selectorVistaLeaderboard) {
+        var vistaTablaLeaderboard = document.getElementById('vista-tabla-leaderboard');
+        var vistaGraficoLeaderboard = document.getElementById('vista-grafico-leaderboard');
+
+        var actualizarVistaLeaderboard = function () {
+            var esGrafico = selectorVistaLeaderboard.value === 'grafico';
+            if (vistaTablaLeaderboard) {
+                vistaTablaLeaderboard.classList.toggle('panel-oculto', esGrafico);
+            }
+            if (vistaGraficoLeaderboard) {
+                vistaGraficoLeaderboard.classList.toggle('panel-oculto', !esGrafico);
+            }
+        };
+
+        selectorVistaLeaderboard.addEventListener('change', actualizarVistaLeaderboard);
+        actualizarVistaLeaderboard();
+    }
+
+    // 9.A ter. Filas dinámicas de participantes de Root
+    var contenedorRoot = document.getElementById('root-participantes');
+    var templateRoot = document.getElementById('root-participante-template');
+    var btnAgregarRoot = document.getElementById('root-agregar-participante');
+    if (contenedorRoot && templateRoot && btnAgregarRoot) {
+        var indiceRoot = parseInt(contenedorRoot.getAttribute('data-next-index') || '0', 10);
+        if (isNaN(indiceRoot)) indiceRoot = 0;
+        btnAgregarRoot.addEventListener('click', function () {
+            var html = templateRoot.innerHTML.replace(/__INDEX__/g, String(indiceRoot));
+            indiceRoot++;
+            var wrapper = document.createElement('div');
+            wrapper.innerHTML = html.trim();
+            if (wrapper.firstElementChild) contenedorRoot.appendChild(wrapper.firstElementChild);
+        });
+        contenedorRoot.addEventListener('click', function (evento) {
+            var boton = evento.target.closest('[data-root-eliminar]');
+            if (!boton) return;
+            var filas = contenedorRoot.querySelectorAll('[data-root-participante-row]');
+            if (filas.length <= 2) {
+                alert('Debe haber al menos 2 participantes.');
+                return;
+            }
+            var fila = boton.closest('[data-root-participante-row]');
+            if (fila) fila.remove();
+        });
+    }
+
+    // 9.A quater. Filas dinámicas de participantes de Juegos Asimétricos
+    var contenedorAsimetrico = document.getElementById('asimetrico-participantes');
+    var templateAsimetrico = document.getElementById('asimetrico-participante-template');
+    var btnAgregarAsimetrico = document.getElementById('asimetrico-agregar-participante');
+    if (contenedorAsimetrico && templateAsimetrico && btnAgregarAsimetrico) {
+        var indiceAsimetrico = parseInt(contenedorAsimetrico.getAttribute('data-next-index') || '0', 10);
+        if (isNaN(indiceAsimetrico)) indiceAsimetrico = 0;
+        btnAgregarAsimetrico.addEventListener('click', function () {
+            var html = templateAsimetrico.innerHTML.replace(/__INDEX__/g, String(indiceAsimetrico));
+            indiceAsimetrico++;
+            var wrapper = document.createElement('div');
+            wrapper.innerHTML = html.trim();
+            if (wrapper.firstElementChild) contenedorAsimetrico.appendChild(wrapper.firstElementChild);
+        });
+        contenedorAsimetrico.addEventListener('click', function (evento) {
+            var boton = evento.target.closest('[data-asimetrico-eliminar]');
+            if (!boton) return;
+            var filas = contenedorAsimetrico.querySelectorAll('[data-asimetrico-participante-row]');
+            if (filas.length <= 2) {
+                alert('Debe haber al menos 2 participantes.');
+                return;
+            }
+            var fila = boton.closest('[data-asimetrico-participante-row]');
+            if (fila) fila.remove();
+        });
+    }
 
     // 9.B. Empaquetado seguro en Hexadecimal de textos e imágenes (evita 100% el 403 Forbidden de openresty en InfinityFree)
     function textoAHexUtf8(texto) {

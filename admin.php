@@ -158,9 +158,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $u = trim($_POST['username']);
                 $j = trim($_POST['NombreJuego']);
                 $fecha = trim($_POST['fecha_victoria']);
-                $stmt = $pdo->prepare("UPDATE Victoria SET username = ?, NombreJuego = ?, fecha_victoria = ? WHERE id_victoria = ?");
-                $stmt->execute([$u, $j, $fecha, $idVic]);
-                $mensajeExito = "Victoria #{$idVic} actualizada.";
+
+                // Duración opcional: entero entre 1 y 1440 minutos
+                $durRaw = isset($_POST['duracion_minutos']) ? trim((string)$_POST['duracion_minutos']) : '';
+                $duracion = null;
+                if ($durRaw !== '') {
+                    $durValida = filter_var($durRaw, FILTER_VALIDATE_INT, [
+                        'options' => ['min_range' => 1, 'max_range' => 1440]
+                    ]);
+                    if ($durValida === false) {
+                        throw new Exception("La duración de la victoria #{$idVic} debe ser un número entero entre 1 y 1440 minutos.");
+                    }
+                    $duracion = (int)$durValida;
+                }
+
+                // Puntuación opcional: máximo 100 caracteres
+                $puntRaw = isset($_POST['puntuacion']) ? trim((string)$_POST['puntuacion']) : '';
+                $puntuacion = null;
+                if ($puntRaw !== '') {
+                    if (mb_strlen($puntRaw) > 100) {
+                        throw new Exception("La puntuación de la victoria #{$idVic} no puede superar los 100 caracteres.");
+                    }
+                    $puntuacion = $puntRaw;
+                }
+
+                // Fecha con formato estricto YYYY-MM-DD HH:MM:SS
+                $fechaDt = DateTime::createFromFormat('Y-m-d H:i:s', $fecha);
+                if ($fechaDt === false || $fechaDt->format('Y-m-d H:i:s') !== $fecha) {
+                    throw new Exception("La fecha de la victoria #{$idVic} no tiene el formato válido AAAA-MM-DD HH:MM:SS.");
+                }
+
+                // Participantes: solo usuarios reales, sin duplicados y con el ganador siempre incluido
+                $participantesSel = (isset($_POST['participantes']) && is_array($_POST['participantes'])) ? $_POST['participantes'] : [];
+                $usuariosReales = [];
+                foreach ($pdo->query("SELECT username FROM Persona")->fetchAll() as $filaUsu) {
+                    $usuariosReales[(string)$filaUsu['username']] = true;
+                }
+                $participantesFinales = [];
+                foreach ($participantesSel as $uPart) {
+                    $uPartLimpio = trim((string)$uPart);
+                    if ($uPartLimpio !== '' && isset($usuariosReales[$uPartLimpio])) {
+                        $participantesFinales[$uPartLimpio] = true;
+                    }
+                }
+                if ($u !== '' && isset($usuariosReales[$u])) {
+                    $participantesFinales[$u] = true;
+                } else {
+                    throw new Exception("El ganador seleccionado en la victoria #{$idVic} no es un usuario válido.");
+                }
+                $participantesFinales = array_keys($participantesFinales);
+
+                $pdo->beginTransaction();
+                try {
+                    $stmt = $pdo->prepare("UPDATE Victoria SET username = ?, NombreJuego = ?, fecha_victoria = ?, duracion_minutos = ?, puntuacion = ? WHERE id_victoria = ?");
+                    $stmt->execute([$u, $j, $fecha, $duracion, $puntuacion, $idVic]);
+
+                    $stmtDelPart = $pdo->prepare("DELETE FROM Victoria_Participante WHERE id_victoria = ?");
+                    $stmtDelPart->execute([$idVic]);
+
+                    $stmtInsPart = $pdo->prepare("INSERT IGNORE INTO Victoria_Participante (id_victoria, username) VALUES (?, ?)");
+                    foreach ($participantesFinales as $uPartIns) {
+                        $stmtInsPart->execute([$idVic, $uPartIns]);
+                    }
+
+                    $pdo->commit();
+                } catch (Throwable $e) {
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+                    throw $e;
+                }
+
+                $mensajeExito = "Victoria #{$idVic} actualizada (fecha, duración, puntuación y participantes guardados).";
             } elseif ($operacion === 'eliminar') {
                 $idVic = (int)$_POST['id_victoria'];
                 $stmt = $pdo->prepare("DELETE FROM Victoria WHERE id_victoria = ?");
@@ -261,7 +330,145 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mensajeExito = "Reseña #{$idRes} eliminada.";
             }
         }
-    } catch (Exception $e) {
+// =====================================================================
+        // 8. CRUD CATÁLOGOS EXTENSIBLES DE ROOT (FACCIONES, MAPAS, MAZOS)
+        // =====================================================================
+        elseif (in_array($entidad, ['root_faccion', 'root_mapa', 'root_mazo'], true)) {
+            $configRoot = [
+                'root_faccion' => ['tabla' => 'Root_Faccion', 'pk' => 'id_faccion', 'activo' => 'activa', 'etiqueta' => 'facción'],
+                'root_mapa'    => ['tabla' => 'Root_Mapa',    'pk' => 'id_mapa',    'activo' => 'activo', 'etiqueta' => 'mapa'],
+                'root_mazo'    => ['tabla' => 'Root_Mazo',    'pk' => 'id_mazo',    'activo' => 'activo', 'etiqueta' => 'mazo'],
+            ];
+            $cfg = $configRoot[$entidad];
+            $tabla = $cfg['tabla'];
+            $pk = $cfg['pk'];
+            $campoActivo = $cfg['activo'];
+            $etiqueta = $cfg['etiqueta'];
+
+            try {
+                if ($operacion === 'crear' || $operacion === 'editar') {
+                    $nombreRoot = isset($_POST['nombre']) ? trim((string)$_POST['nombre']) : '';
+                    if ($nombreRoot === '') {
+                        throw new Exception("El nombre de la {$etiqueta} es obligatorio.");
+                    }
+                    if (mb_strlen($nombreRoot) > 100) {
+                        throw new Exception("El nombre de la {$etiqueta} no puede superar los 100 caracteres.");
+                    }
+                    $activoRoot = (isset($_POST['activo']) && $_POST['activo'] === '1') ? 1 : 0;
+
+                    if ($operacion === 'crear') {
+                        $stmt = $pdo->prepare("INSERT INTO {$tabla} (nombre, {$campoActivo}) VALUES (?, ?)");
+                        $stmt->execute([$nombreRoot, $activoRoot]);
+                        $mensajeExito = ucfirst($etiqueta) . " «{$nombreRoot}» añadido al catálogo.";
+                    } else {
+                        $idRoot = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+                        if ($idRoot <= 0) {
+                            throw new Exception("Identificador de {$etiqueta} no válido.");
+                        }
+                        $stmt = $pdo->prepare("UPDATE {$tabla} SET nombre = ?, {$campoActivo} = ? WHERE {$pk} = ?");
+                        $stmt->execute([$nombreRoot, $activoRoot, $idRoot]);
+                        $mensajeExito = ucfirst($etiqueta) . " #{$idRoot} actualizado correctamente.";
+                    }
+                } elseif ($operacion === 'eliminar') {
+                    $idRoot = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+                    if ($idRoot <= 0) {
+                        throw new Exception("Identificador de {$etiqueta} no válido.");
+                    }
+                    $stmt = $pdo->prepare("DELETE FROM {$tabla} WHERE {$pk} = ?");
+                    $stmt->execute([$idRoot]);
+                    $mensajeExito = ucfirst($etiqueta) . " #{$idRoot} eliminado del catálogo.";
+                }
+            } catch (PDOException $eRoot) {
+                if (isset($eRoot->errorInfo[0]) && $eRoot->errorInfo[0] === '42S02') {
+                    $mensajeError = 'Los catálogos de Root no están disponibles. Ejecuta sql/migration_root.sql para crear las tablas necesarias.';
+                } elseif (isset($eRoot->errorInfo[0]) && $eRoot->errorInfo[0] === '23000') {
+                    if ($operacion === 'eliminar') {
+                        $mensajeError = "No se puede borrar porque está en uso; desactívalo en su lugar.";
+                    } else {
+                        $mensajeError = "Ya existe un registro con ese nombre.";
+                    }
+                } else {
+                    throw $eRoot;
+                }
+            }
+        }
+// =====================================================================
+        // 9. CRUD PERSONAJES DE JUEGOS ASIMÉTRICOS
+        // =====================================================================
+        elseif ($entidad === 'asimetrico_personaje') {
+            $codigoJuego = isset($_POST['codigo_juego']) ? trim((string)$_POST['codigo_juego']) : '';
+
+            try {
+                $stmtJuegoAsim = $pdo->prepare("SELECT codigo_juego, nombre_visible, num_personajes_por_jugador FROM Juego_Asimetrico WHERE codigo_juego = ?");
+                $stmtJuegoAsim->execute([$codigoJuego]);
+                $juegoAsim = $stmtJuegoAsim->fetch();
+                if (!$juegoAsim) {
+                    throw new Exception('Juego asimétrico no válido.');
+                }
+                $_GET['admin_asimetrico'] = $codigoJuego; // conservar selector tras POST
+
+                if ($operacion === 'crear' || $operacion === 'editar') {
+                    $nombreAsim = isset($_POST['nombre']) ? trim((string)$_POST['nombre']) : '';
+                    if ($nombreAsim === '') {
+                        throw new Exception('El nombre del personaje es obligatorio.');
+                    }
+                    if (mb_strlen($nombreAsim) > 100) {
+                        throw new Exception('El nombre del personaje no puede superar los 100 caracteres.');
+                    }
+                    $activoAsim = (isset($_POST['activo']) && $_POST['activo'] === '1') ? 1 : 0;
+
+                    if ($operacion === 'crear') {
+                        $stmt = $pdo->prepare("INSERT INTO Personaje_Asimetrico (codigo_juego, nombre_personaje, activo) VALUES (?, ?, ?)");
+                        $stmt->execute([$codigoJuego, $nombreAsim, $activoAsim]);
+                        $mensajeExito = "Personaje «{$nombreAsim}» añadido al juego «{$juegoAsim['nombre_visible']}».";
+                    } else {
+                        $idPersonaje = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+                        if ($idPersonaje <= 0) {
+                            throw new Exception('Identificador de personaje no válido.');
+                        }
+                        $stmtExisteAsim = $pdo->prepare("SELECT COUNT(*) FROM Personaje_Asimetrico WHERE id_personaje = ? AND codigo_juego = ?");
+                        $stmtExisteAsim->execute([$idPersonaje, $codigoJuego]);
+                        if ((int)$stmtExisteAsim->fetchColumn() === 0) {
+                            throw new Exception('El personaje no existe en el juego seleccionado.');
+                        }
+                        $stmt = $pdo->prepare("UPDATE Personaje_Asimetrico SET nombre_personaje = ?, activo = ? WHERE id_personaje = ? AND codigo_juego = ?");
+                        $stmt->execute([$nombreAsim, $activoAsim, $idPersonaje, $codigoJuego]);
+                        $mensajeExito = "Personaje «{$nombreAsim}» actualizado correctamente.";
+                    }
+                } elseif ($operacion === 'eliminar') {
+                    $idPersonaje = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+                    if ($idPersonaje <= 0) {
+                        throw new Exception('Identificador de personaje no válido.');
+                    }
+                    $stmtUso = $pdo->prepare("SELECT COUNT(*) FROM Participante_Personaje_Asimetrico WHERE id_personaje = ?");
+                    $stmtUso->execute([$idPersonaje]);
+                    if ((int)$stmtUso->fetchColumn() > 0) {
+                        $mensajeError = 'No se puede borrar el personaje porque está en uso en partidas. Desactívalo en su lugar.';
+                    } else {
+                        $stmt = $pdo->prepare("DELETE FROM Personaje_Asimetrico WHERE id_personaje = ? AND codigo_juego = ?");
+                        $stmt->execute([$idPersonaje, $codigoJuego]);
+                        if ($stmt->rowCount() === 0) {
+                            $mensajeError = 'El personaje no existe en el juego seleccionado.';
+                        } else {
+                            $mensajeExito = "Personaje #{$idPersonaje} eliminado del juego «{$juegoAsim['nombre_visible']}».";
+                        }
+                    }
+                }
+            } catch (PDOException $eAsim) {
+                if (isset($eAsim->errorInfo[0]) && $eAsim->errorInfo[0] === '42S02') {
+                    $mensajeError = 'Los catálogos asimétricos no están disponibles. Ejecuta sql/migration_asimetricos.sql para crear las tablas necesarias.';
+                } elseif (isset($eAsim->errorInfo[0]) && $eAsim->errorInfo[0] === '23000') {
+                    if ($operacion === 'eliminar') {
+                        $mensajeError = 'No se puede borrar el personaje porque está en uso. Desactívalo en su lugar.';
+                    } else {
+                        $mensajeError = 'Ya existe un personaje con ese nombre en este juego.';
+                    }
+                } else {
+                    throw $eAsim;
+                }
+            }
+        }
+    } catch (Throwable $e) {
         $mensajeError = "Error en la operación de administración: " . $e->getMessage();
     }
 }
@@ -275,10 +482,74 @@ foreach ($pdo->query("SELECT username, NombreJuego FROM Juego_Propietario")->fet
 }
 $relacionesPJ = $pdo->query("SELECT * FROM Persona_Juego ORDER BY NombreJuego ASC, username ASC")->fetchAll();
 $victorias = $pdo->query("SELECT * FROM Victoria ORDER BY id_victoria DESC")->fetchAll();
+$participantesPorVictoria = [];
+if (count($victorias) > 0) {
+    $idsVictorias = array_map(function ($v) { return (int)$v['id_victoria']; }, $victorias);
+    $placeholders = implode(',', array_fill(0, count($idsVictorias), '?'));
+    $stmtPart = $pdo->prepare("
+        SELECT vp.id_victoria, vp.username, p.NombrePersona
+        FROM Victoria_Participante vp
+        INNER JOIN Persona p ON vp.username = p.username
+        WHERE vp.id_victoria IN ($placeholders)
+        ORDER BY p.NombrePersona ASC
+    ");
+    $stmtPart->execute($idsVictorias);
+    foreach ($stmtPart->fetchAll() as $filaPart) {
+        $participantesPorVictoria[(int)$filaPart['id_victoria']][] = $filaPart;
+    }
+}
 $votaciones = $pdo->query("SELECT * FROM Votacion ORDER BY id_votacion DESC")->fetchAll();
 $votos = $pdo->query("SELECT * FROM Voto ORDER BY id_voto DESC")->fetchAll();
 $resenyas = $pdo->query("SELECT * FROM Resenya ORDER BY fecha_resenya DESC, id_resenya DESC")->fetchAll();
 $escalaAdminResenyas = obtenerEscalaCalificaciones();
+
+$rootCatalogsDisponibles = true;
+$rootFaccionesAdmin = [];
+$rootMapasAdmin = [];
+$rootMazosAdmin = [];
+try {
+  $rootFaccionesAdmin = $pdo->query("SELECT id_faccion, nombre, activa FROM Root_Faccion ORDER BY nombre ASC")->fetchAll();
+  $rootMapasAdmin = $pdo->query("SELECT id_mapa, nombre, activo FROM Root_Mapa ORDER BY nombre ASC")->fetchAll();
+  $rootMazosAdmin = $pdo->query("SELECT id_mazo, nombre, activo FROM Root_Mazo ORDER BY nombre ASC")->fetchAll();
+} catch (PDOException $e) {
+  $rootCatalogsDisponibles = false;
+  error_log('Catálogos Root no disponibles: ' . $e->getMessage());
+}
+
+$asimetricosAdminDisponibles = true;
+$juegosAsimetricosAdmin = [];
+$personajesAsimetricosAdmin = [];
+$codigoAsimetricoAdminSeleccionado = '';
+$juegoAsimetricoAdminActual = null;
+try {
+    $juegosAsimetricosAdmin = $pdo->query("SELECT codigo_juego, nombre_visible, num_personajes_por_jugador FROM Juego_Asimetrico ORDER BY nombre_visible ASC")->fetchAll();
+    // Orden fijo del enunciado; los juegos futuros quedan al final por nombre visible.
+    $ordenJuegosAsimetricos = ['villainous_disney' => 0, 'villainous_marvel' => 1, 'villainous_star_wars' => 2, 'tag_team' => 3];
+    usort($juegosAsimetricosAdmin, function ($a, $b) use ($ordenJuegosAsimetricos) {
+        $prioA = array_key_exists($a['codigo_juego'], $ordenJuegosAsimetricos) ? $ordenJuegosAsimetricos[$a['codigo_juego']] : PHP_INT_MAX;
+        $prioB = array_key_exists($b['codigo_juego'], $ordenJuegosAsimetricos) ? $ordenJuegosAsimetricos[$b['codigo_juego']] : PHP_INT_MAX;
+        if ($prioA !== $prioB) {
+            return $prioA <=> $prioB;
+        }
+        return strcmp((string)$a['nombre_visible'], (string)$b['nombre_visible']);
+    });
+    $codigoGet = isset($_GET['admin_asimetrico']) ? trim((string)$_GET['admin_asimetrico']) : '';
+    foreach ($juegosAsimetricosAdmin as $jA) {
+        if ($codigoGet !== '' && $jA['codigo_juego'] === $codigoGet) { $codigoAsimetricoAdminSeleccionado = $codigoGet; $juegoAsimetricoAdminActual = $jA; break; }
+    }
+    if ($codigoAsimetricoAdminSeleccionado === '' && count($juegosAsimetricosAdmin) > 0) {
+        $codigoAsimetricoAdminSeleccionado = $juegosAsimetricosAdmin[0]['codigo_juego'];
+        $juegoAsimetricoAdminActual = $juegosAsimetricosAdmin[0];
+    }
+    if ($codigoAsimetricoAdminSeleccionado !== '') {
+        $stmtPersAsim = $pdo->prepare("SELECT id_personaje, nombre_personaje, activo FROM Personaje_Asimetrico WHERE codigo_juego = ? ORDER BY nombre_personaje ASC");
+        $stmtPersAsim->execute([$codigoAsimetricoAdminSeleccionado]);
+        $personajesAsimetricosAdmin = $stmtPersAsim->fetchAll();
+    }
+} catch (PDOException $e) {
+    $asimetricosAdminDisponibles = false;
+    error_log('Catálogos asimétricos no disponibles: ' . $e->getMessage());
+}
 
 // Comprobar si estamos en la vista dedicada de edición de un juego concreto
 $juegoEditarNombre = isset($_GET['editar_juego']) ? trim($_GET['editar_juego']) : '';
@@ -517,6 +788,9 @@ if ($juegoEditarNombre !== '') {
                             <td>
                                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                     <a href="admin.php?editar_juego=<?php echo urlencode($nomJ); ?>" class="btn btn-bronce btn-pequeno">Editar</a>
+                                    <?php if ($loTen): ?>
+                                        <a href="ludoteca.php?juego=<?php echo urlencode($nomJ); ?>" class="btn btn-bronce btn-pequeno">Ver ficha</a>
+                                    <?php endif; ?>
                                     <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar el juego <?php echo h($nomJ); ?> y sus votos/victorias?">
                                         <input type="hidden" name="entidad" value="juego">
                                         <input type="hidden" name="operacion" value="eliminar">
@@ -623,6 +897,9 @@ if ($juegoEditarNombre !== '') {
                         <th>Ganador</th>
                         <th>Juego</th>
                         <th>Fecha y Hora</th>
+                        <th>Duración (min)</th>
+                        <th>Puntuación</th>
+                        <th>Participantes</th>
                         <th style="width:210px;">Acciones</th>
                     </tr>
                 </thead>
@@ -655,6 +932,32 @@ if ($juegoEditarNombre !== '') {
                             </td>
                             <td>
                                 <input type="text" form="<?php echo $formIdV; ?>" name="fecha_victoria" value="<?php echo h($v['fecha_victoria']); ?>" class="input-taberna" required>
+                            </td>
+                            <td>
+                                <input type="number" form="<?php echo $formIdV; ?>" name="duracion_minutos" min="1" max="1440" value="<?php echo h((string)$v['duracion_minutos']); ?>" class="input-taberna" placeholder="(Opcional)">
+                            </td>
+                            <td>
+                                <input type="text" form="<?php echo $formIdV; ?>" name="puntuacion" maxlength="100" value="<?php echo h((string)$v['puntuacion']); ?>" class="input-taberna" placeholder="(Opcional)">
+                            </td>
+                            <td>
+                                <?php
+                                $participantesV = isset($participantesPorVictoria[(int)$v['id_victoria']]) ? $participantesPorVictoria[(int)$v['id_victoria']] : [];
+                                $usernamesPartV = [];
+                                foreach ($participantesV as $filaPartV) {
+                                    $usernamesPartV[(string)$filaPartV['username']] = true;
+                                }
+                                // Respaldo para victorias históricas sin participantes registrados
+                                if (count($usernamesPartV) === 0 && (string)$v['username'] !== '') {
+                                    $usernamesPartV[(string)$v['username']] = true;
+                                }
+                                ?>
+                                <select form="<?php echo $formIdV; ?>" name="participantes[]" multiple size="4" class="select-taberna select-participantes">
+                                    <?php foreach ($personas as $p): ?>
+                                        <option value="<?php echo h($p['username']); ?>" <?php echo isset($usernamesPartV[(string)$p['username']]) ? 'selected' : ''; ?>>
+                                            <?php echo h($p['NombrePersona']); ?> (<?php echo h($p['username']); ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
                             </td>
                             <td>
                                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -929,6 +1232,278 @@ if ($juegoEditarNombre !== '') {
                 </tbody>
             </table>
         </div>
+    </section>
+
+    <!-- 8. CATÁLOGOS EXTENSIBLES DE ROOT -->
+    <section class="pergamino">
+        <h3 class="seccion-titulo">8. Catálogos de Root</h3>
+
+        <?php if (!$rootCatalogsDisponibles): ?>
+            <div class="alerta alerta-error">
+                Los catálogos de Root no están disponibles. Ejecuta <code>sql/migration_root.sql</code> para crear las tablas necesarias.
+            </div>
+        <?php else: ?>
+
+            <!-- FACCIONES -->
+            <h4 style="margin-top:0;">Facciones (<?php echo count($rootFaccionesAdmin); ?>)</h4>
+            <form method="POST" action="admin.php" class="pergamino-secundario" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;">
+                <input type="hidden" name="entidad" value="root_faccion">
+                <input type="hidden" name="operacion" value="crear">
+                <div>
+                    <label>Nueva facción:</label>
+                    <input type="text" name="nombre" class="input-taberna" required maxlength="100" placeholder="Ej. Homeland...">
+                </div>
+                <label style="font-weight:bold;"><input type="checkbox" name="activo" value="1" checked> Activa</label>
+                <button type="submit" class="btn btn-bronce btn-pequeno">Añadir</button>
+            </form>
+
+            <div class="tabla-contenedor" style="max-height:420px; overflow-y:auto;">
+                <table class="tabla-taberna">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th style="width:110px;">Activo</th>
+                            <th style="width:190px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($rootFaccionesAdmin as $rf): ?>
+                            <?php $formIdRf = 'form_root_fac_' . (int)$rf['id_faccion']; ?>
+                            <tr>
+                                <td>
+                                    <form id="<?php echo h($formIdRf); ?>" method="POST" action="admin.php">
+                                        <input type="hidden" name="entidad" value="root_faccion">
+                                        <input type="hidden" name="operacion" value="editar">
+                                        <input type="hidden" name="id" value="<?php echo (int)$rf['id_faccion']; ?>">
+                                    </form>
+                                    <input type="text" form="<?php echo h($formIdRf); ?>" name="nombre" value="<?php echo h((string)$rf['nombre']); ?>" class="input-taberna" maxlength="100">
+                                </td>
+                                <td>
+                                    <input type="checkbox" form="<?php echo h($formIdRf); ?>" name="activo" value="1" <?php echo (int)$rf['activa'] === 1 ? 'checked' : ''; ?>>
+                                </td>
+                                <td>
+                                    <div class="acciones-admin-celda">
+                                        <button type="submit" form="<?php echo h($formIdRf); ?>" class="btn btn-exito btn-pequeno">Guardar</button>
+                                        <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar la facción <?php echo h((string)$rf['nombre']); ?>?">
+                                            <input type="hidden" name="entidad" value="root_faccion">
+                                            <input type="hidden" name="operacion" value="eliminar">
+                                            <input type="hidden" name="id" value="<?php echo (int)$rf['id_faccion']; ?>">
+                                            <button type="submit" class="btn btn-peligro btn-pequeno">Borrar</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- MAPAS -->
+            <h4>Mapas (<?php echo count($rootMapasAdmin); ?>)</h4>
+            <form method="POST" action="admin.php" class="pergamino-secundario" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;">
+                <input type="hidden" name="entidad" value="root_mapa">
+                <input type="hidden" name="operacion" value="crear">
+                <div>
+                    <label>Nuevo mapa:</label>
+                    <input type="text" name="nombre" class="input-taberna" required maxlength="100" placeholder="Ej. Bosque de Otoño...">
+                </div>
+                <label style="font-weight:bold;"><input type="checkbox" name="activo" value="1" checked> Activo</label>
+                <button type="submit" class="btn btn-bronce btn-pequeno">Añadir</button>
+            </form>
+
+            <div class="tabla-contenedor" style="max-height:420px; overflow-y:auto;">
+                <table class="tabla-taberna">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th style="width:110px;">Activo</th>
+                            <th style="width:190px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($rootMapasAdmin as $rm): ?>
+                            <?php $formIdRm = 'form_root_map_' . (int)$rm['id_mapa']; ?>
+                            <tr>
+                                <td>
+                                    <form id="<?php echo h($formIdRm); ?>" method="POST" action="admin.php">
+                                        <input type="hidden" name="entidad" value="root_mapa">
+                                        <input type="hidden" name="operacion" value="editar">
+                                        <input type="hidden" name="id" value="<?php echo (int)$rm['id_mapa']; ?>">
+                                    </form>
+                                    <input type="text" form="<?php echo h($formIdRm); ?>" name="nombre" value="<?php echo h((string)$rm['nombre']); ?>" class="input-taberna" maxlength="100">
+                                </td>
+                                <td>
+                                    <input type="checkbox" form="<?php echo h($formIdRm); ?>" name="activo" value="1" <?php echo (int)$rm['activo'] === 1 ? 'checked' : ''; ?>>
+                                </td>
+                                <td>
+                                    <div class="acciones-admin-celda">
+                                        <button type="submit" form="<?php echo h($formIdRm); ?>" class="btn btn-exito btn-pequeno">Guardar</button>
+                                        <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar el mapa <?php echo h((string)$rm['nombre']); ?>?">
+                                            <input type="hidden" name="entidad" value="root_mapa">
+                                            <input type="hidden" name="operacion" value="eliminar">
+                                            <input type="hidden" name="id" value="<?php echo (int)$rm['id_mapa']; ?>">
+                                            <button type="submit" class="btn btn-peligro btn-pequeno">Borrar</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- MAZOS -->
+            <h4>Mazos (<?php echo count($rootMazosAdmin); ?>)</h4>
+            <form method="POST" action="admin.php" class="pergamino-secundario" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;">
+                <input type="hidden" name="entidad" value="root_mazo">
+                <input type="hidden" name="operacion" value="crear">
+                <div>
+                    <label>Nuevo mazo:</label>
+                    <input type="text" name="nombre" class="input-taberna" required maxlength="100" placeholder="Ej. Mazo de los Nidos...">
+                </div>
+                <label style="font-weight:bold;"><input type="checkbox" name="activo" value="1" checked> Activo</label>
+                <button type="submit" class="btn btn-bronce btn-pequeno">Añadir</button>
+            </form>
+
+            <div class="tabla-contenedor" style="max-height:420px; overflow-y:auto;">
+                <table class="tabla-taberna">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th style="width:110px;">Activo</th>
+                            <th style="width:190px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($rootMazosAdmin as $rz): ?>
+                            <?php $formIdRz = 'form_root_maz_' . (int)$rz['id_mazo']; ?>
+                            <tr>
+                                <td>
+                                    <form id="<?php echo h($formIdRz); ?>" method="POST" action="admin.php">
+                                        <input type="hidden" name="entidad" value="root_mazo">
+                                        <input type="hidden" name="operacion" value="editar">
+                                        <input type="hidden" name="id" value="<?php echo (int)$rz['id_mazo']; ?>">
+                                    </form>
+                                    <input type="text" form="<?php echo h($formIdRz); ?>" name="nombre" value="<?php echo h((string)$rz['nombre']); ?>" class="input-taberna" maxlength="100">
+                                </td>
+                                <td>
+                                    <input type="checkbox" form="<?php echo h($formIdRz); ?>" name="activo" value="1" <?php echo (int)$rz['activo'] === 1 ? 'checked' : ''; ?>>
+                                </td>
+                                <td>
+                                    <div class="acciones-admin-celda">
+                                        <button type="submit" form="<?php echo h($formIdRz); ?>" class="btn btn-exito btn-pequeno">Guardar</button>
+                                        <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar el mazo <?php echo h((string)$rz['nombre']); ?>?">
+                                            <input type="hidden" name="entidad" value="root_mazo">
+                                            <input type="hidden" name="operacion" value="eliminar">
+                                            <input type="hidden" name="id" value="<?php echo (int)$rz['id_mazo']; ?>">
+                                            <button type="submit" class="btn btn-peligro btn-pequeno">Borrar</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+        <?php endif; ?>
+    </section>
+
+    <!-- 9. CATÁLOGOS DE JUEGOS ASIMÉTRICOS -->
+    <section class="pergamino">
+        <h3 class="seccion-titulo">9. Catálogos de Juegos Asimétricos</h3>
+
+        <?php if (!$asimetricosAdminDisponibles): ?>
+            <div class="alerta alerta-error">
+                Los catálogos de juegos asimétricos no están disponibles. Ejecuta <code>sql/migration_asimetricos.sql</code> para crear las tablas necesarias.
+            </div>
+        <?php elseif (count($juegosAsimetricosAdmin) === 0): ?>
+            <div class="alerta">
+                No hay juegos asimétricos configurados.
+            </div>
+        <?php else: ?>
+
+            <form method="GET" action="admin.php" class="pergamino-secundario" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;">
+                <div>
+                    <label>Juego:</label>
+                    <select name="admin_asimetrico" class="select-taberna" onchange="this.form.submit()">
+                        <?php foreach ($juegosAsimetricosAdmin as $jA): ?>
+                            <option value="<?php echo h($jA['codigo_juego']); ?>" <?php echo $jA['codigo_juego'] === $codigoAsimetricoAdminSeleccionado ? 'selected' : ''; ?>>
+                                <?php echo h($jA['nombre_visible']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <noscript><button type="submit" class="btn btn-pequeno">Cambiar</button></noscript>
+            </form>
+
+            <?php if ($juegoAsimetricoAdminActual !== null): ?>
+                <p class="pergamino-secundario">
+                    <strong><?php echo h($juegoAsimetricoAdminActual['nombre_visible']); ?></strong>:
+                    <?php echo (int)$juegoAsimetricoAdminActual['num_personajes_por_jugador'] === 1 ? '1 personaje por jugador' : (int)$juegoAsimetricoAdminActual['num_personajes_por_jugador'] . ' personajes por jugador'; ?>
+                </p>
+            <?php endif; ?>
+
+            <form method="POST" action="admin.php" class="pergamino-secundario" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;">
+                <input type="hidden" name="entidad" value="asimetrico_personaje">
+                <input type="hidden" name="operacion" value="crear">
+                <input type="hidden" name="codigo_juego" value="<?php echo h($codigoAsimetricoAdminSeleccionado); ?>">
+                <div>
+                    <label>Nuevo personaje:</label>
+                    <input type="text" name="nombre" class="input-taberna" required maxlength="100" placeholder="Nombre del personaje...">
+                </div>
+                <label style="font-weight:bold;"><input type="checkbox" name="activo" value="1" checked> Activo</label>
+                <button type="submit" class="btn btn-bronce btn-pequeno">Añadir</button>
+            </form>
+
+            <div class="tabla-contenedor" style="max-height:420px; overflow-y:auto;">
+                <table class="tabla-taberna">
+                    <thead>
+                        <tr>
+                            <th>Personaje</th>
+                            <th style="width:110px;">Activo</th>
+                            <th style="width:190px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($personajesAsimetricosAdmin as $ap): ?>
+                            <?php $formIdAp = 'form_asim_pers_' . (int)$ap['id_personaje']; ?>
+                            <tr>
+                                <td>
+                                    <form id="<?php echo h($formIdAp); ?>" method="POST" action="admin.php">
+                                        <input type="hidden" name="entidad" value="asimetrico_personaje">
+                                        <input type="hidden" name="operacion" value="editar">
+                                        <input type="hidden" name="id" value="<?php echo (int)$ap['id_personaje']; ?>">
+                                        <input type="hidden" name="codigo_juego" value="<?php echo h($codigoAsimetricoAdminSeleccionado); ?>">
+                                    </form>
+                                    <input type="text" form="<?php echo h($formIdAp); ?>" name="nombre" value="<?php echo h((string)$ap['nombre_personaje']); ?>" class="input-taberna" required maxlength="100">
+                                </td>
+                                <td>
+                                    <input type="checkbox" form="<?php echo h($formIdAp); ?>" name="activo" value="1" <?php echo (int)$ap['activo'] === 1 ? 'checked' : ''; ?>>
+                                </td>
+                                <td>
+                                    <div class="acciones-admin-celda">
+                                        <button type="submit" form="<?php echo h($formIdAp); ?>" class="btn btn-exito btn-pequeno">Guardar</button>
+                                        <form method="POST" action="admin.php" class="form-confirmar-borrado" data-confirm-msg="¿Eliminar el personaje <?php echo h((string)$ap['nombre_personaje']); ?>?">
+                                            <input type="hidden" name="entidad" value="asimetrico_personaje">
+                                            <input type="hidden" name="operacion" value="eliminar">
+                                            <input type="hidden" name="id" value="<?php echo (int)$ap['id_personaje']; ?>">
+                                            <input type="hidden" name="codigo_juego" value="<?php echo h($codigoAsimetricoAdminSeleccionado); ?>">
+                                            <button type="submit" class="btn btn-peligro btn-pequeno">Borrar</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <p style="font-size:0.9em; margin-top:8px;">
+                Los personajes usados en partidas no se pueden borrar; desactívalos para ocultarlos del formulario sin perder el historial.
+            </p>
+
+        <?php endif; ?>
     </section>
 
     <?php endif; ?>

@@ -51,6 +51,49 @@ Aplicación web de gestión comunitaria para grupos de juegos de mesa, diseñada
 
 ---
 
+## 🗃️ Migraciones de Base de Datos
+
+El despliegue FTP excluye el directorio `sql/**`, por lo que los scripts de migración **no se aplican automáticamente**: deben ejecutarse a mano en **phpMyAdmin de InfinityFree** (por ejemplo, importando el archivo o pegando su contenido en la pestaña *SQL*).
+
+### 🎲 Migración de partidas (`sql/migration_partidas.sql`)
+
+> ⚠️ **Antes de desplegar** el código de esta funcionalidad, ejecuta `sql/migration_partidas.sql` sobre la base de datos de producción.
+
+* **Qué añade:**
+  * Las columnas `Victoria.duracion_minutos` (`INT NULL`) y `Victoria.puntuacion` (`VARCHAR(100) NULL`).
+  * La tabla `Victoria_Participante` (participantes de cada partida, con claves foráneas en cascada hacia `Victoria` y `Persona`).
+  * Un *backfill* que registra al ganador de cada victoria histórica como participante mínimo.
+* **Idempotente:** comprueba si las columnas ya existen antes de crearlas, usa `CREATE TABLE IF NOT EXISTS` e `INSERT IGNORE`, por lo que puede ejecutarse varias veces sin errores.
+* **Aviso:** sin esta migración, `leaderboard.php` y `admin.php` fallarán al consultar `Victoria_Participante`.
+
+### 🍂 Módulo Root (`sql/migration_root.sql`)
+
+> ⚠️ **Ejecutar antes del despliegue** del código del módulo Root.
+
+* **Qué crea:**
+  * `Root_Faccion`, `Root_Mapa` y `Root_Mazo`: catálogos extensibles de facciones, mapas y mazos (con flag `activa`/`activo` para deshabilitarlos sin borrarlos).
+  * `Partida_Root`: cabecera de cada partida (mapa, mazo, condición de victoria, secuaces, duración y notas).
+  * `Participante_Root`: participantes de cada partida con su facción, puntos y si ha ganado.
+* **Seeds iniciales:** las 11 facciones (incluidas las dos plazas de Vagabundo y las facciones de expansión), los 4 mapas y los 2 mazos disponibles.
+* **Idempotente:** usa `CREATE TABLE IF NOT EXISTS` e `INSERT IGNORE`, por lo que puede ejecutarse varias veces sin errores ni duplicados, y no contiene ningún `DROP`.
+* **Aviso:** sin esta migración, la pestaña «Crónicas de Root» mostrará un aviso y no permitirá registrar partidas; el resto del Leaderboard seguirá funcionando.
+
+### 🎭 Hub de Juegos Asimétricos (`sql/migration_asimetricos.sql`)
+
+> ⚠️ **Ejecutar antes del despliegue** del código del hub de juegos asimétricos.
+
+* **Qué crea:**
+  * `Juego_Asimetrico`: catálogo de juegos asimétricos y personajes por jugador.
+  * `Personaje_Asimetrico`: catálogo extensible de personajes de cada juego (con flag `activo` para deshabilitarlos sin borrarlos).
+  * `Partida_Asimetrica`: cabecera de cada partida (juego, fecha, duración y notas).
+  * `Participante_Asimetrico`: participantes de cada partida con su resultado.
+  * `Participante_Personaje_Asimetrico`: personajes elegidos por cada participante.
+* **Seeds iniciales:** los 4 juegos (Villainous Disney, Marvel y Star Wars, y Tag Team) y sus 50 personajes iniciales.
+* **Idempotente:** usa `CREATE TABLE IF NOT EXISTS`, `INSERT IGNORE` y una clave única por juego y nombre de personaje, por lo que puede ejecutarse varias veces sin errores ni duplicados, y no contiene ningún `DROP`.
+* **Aviso:** sin esta migración, la pestaña del hub de juegos asimétricos mostrará un aviso controlado y no permitirá registrar partidas.
+
+---
+
 ## 📂 Estructura del Repositorio
 
 ```text
@@ -58,7 +101,10 @@ BoardGameManager/
 ├── .github/workflows/
 │   └── deploy.yml          # Automatización de despliegue FTP e inyección de secretos
 ├── sql/
-│   └── database.sql        # Esquema completo de tablas y relaciones en cascada
+│   ├── database.sql        # Esquema completo de tablas y relaciones en cascada
+│   ├── migration_partidas.sql # Migración manual: duración, puntuación y participantes
+│   ├── migration_root.sql  # Migración manual: tablas del módulo Root
+│   └── migration_asimetricos.sql # Migración manual: hub de juegos asimétricos
 ├── img/
 │   └── logo.png            # Emblema y favicon de la taberna
 ├── uploads/                # Almacenamiento de portadas subidas por los usuarios
