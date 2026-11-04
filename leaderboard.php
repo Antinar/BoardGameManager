@@ -176,7 +176,7 @@ $personajesAsimetricosPorId = [];
 $codigoAsimetricoSeleccionado = '';
 $asimetricoJuegoActual = null;
 $asimetricoNumPersonajesPorJugador = 1;
-$asimetricoDuracionObligatoria = true;
+$asimetricoDuracionObligatoria = false;
 $asimetricoPersonajes = [];
 $asimetricoPersonajesPorId = [];
 $asimetricoRankingJugadores = [];
@@ -238,7 +238,7 @@ if ($codigoAsimetricoPost !== '' && isset($juegosAsimetricos[$codigoAsimetricoPo
 }
 $asimetricoJuegoActual = $codigoAsimetricoSeleccionado !== '' ? $juegosAsimetricos[$codigoAsimetricoSeleccionado] : null;
 $asimetricoNumPersonajesPorJugador = $asimetricoJuegoActual ? max(1, (int)$asimetricoJuegoActual['num_personajes_por_jugador']) : 1;
-$asimetricoDuracionObligatoria = $codigoAsimetricoSeleccionado !== 'tag_team';
+$asimetricoDuracionObligatoria = false;
 $asimetricoPersonajes = $personajesAsimetricosPorJuego[$codigoAsimetricoSeleccionado] ?? [];
 $asimetricoPersonajesPorId = $personajesAsimetricosPorId[$codigoAsimetricoSeleccionado] ?? [];
 $asimetricoFormularioDisponible = $asimetricosDisponible
@@ -693,8 +693,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $asimetricoDuracion = normalizarDuracion($_POST['duracion_minutos'] ?? '', $asimetricoErrorDuracion);
             if ($asimetricoErrorDuracion !== '') {
                 $asimetricoErrores[] = $asimetricoErrorDuracion;
-            } elseif ($codigoJuegoPost !== '' && $codigoJuegoPost !== 'tag_team' && $asimetricoDuracion === null) {
-                $asimetricoErrores[] = 'La duración es obligatoria para este juego.';
             }
 
             // Notas
@@ -1055,8 +1053,8 @@ if ($rootDisponible) {
         }
     } catch (PDOException $e) {
         $rootDisponible = false;
-        $rootError = 'No se pudieron cargar las crónicas de Root.';
-        error_log('Error al cargar crónicas de Root: ' . $e->getMessage());
+        $rootError = 'No se pudieron cargar las batallas de Root.';
+        error_log('Error al cargar batallas de Root: ' . $e->getMessage());
         $rootRankingJugadores = [];
         $rootRankingFacciones = [];
         $rootPartidas = [];
@@ -1168,8 +1166,8 @@ if ($asimetricosDisponible && $asimetricoJuegoActual !== null) {
         $asimetricoTotalPersonajes = count($asimetricoPersonajes);
     } catch (PDOException $e) {
         $asimetricosDisponible = false;
-        $asimetricosError = 'No se pudieron cargar las crónicas de los juegos asimétricos.';
-        error_log('Error al cargar crónicas de Juegos Asimétricos: ' . $e->getMessage());
+        $asimetricosError = 'No se pudieron cargar las partidas de los juegos asimétricos.';
+        error_log('Error al cargar Juegos Asimétricos: ' . $e->getMessage());
         $asimetricoRankingJugadores = [];
         $asimetricoRankingPersonajes = [];
         $asimetricoPartidas = [];
@@ -1204,8 +1202,8 @@ if ($asimetricosDisponible && $asimetricoJuegoActual !== null) {
 
     <div class="pestanas-barra leaderboard-pestanas">
         <button type="button" class="pestana-btn activa" data-tab-group="leaderboard" data-tab-target="#panel-leaderboard-general">Tablón General</button>
-        <button type="button" class="pestana-btn" data-tab-group="leaderboard" data-tab-target="#panel-leaderboard-root">Crónicas de Root</button>
-        <button type="button" class="pestana-btn" data-tab-group="leaderboard" data-tab-target="#panel-leaderboard-asimetricos">Juegos Asimétricos / Crónicas de Personajes</button>
+        <button type="button" class="pestana-btn" data-tab-group="leaderboard" data-tab-target="#panel-leaderboard-root">Batallas de Root</button>
+        <button type="button" class="pestana-btn" data-tab-group="leaderboard" data-tab-target="#panel-leaderboard-asimetricos">Juegos Asimétricos</button>
     </div>
 
     <div id="panel-leaderboard-general" data-tab-content-group="leaderboard">
@@ -1577,7 +1575,7 @@ if ($asimetricosDisponible && $asimetricoJuegoActual !== null) {
     <div id="panel-leaderboard-root" data-tab-content-group="leaderboard" class="panel-oculto">
         <?php if (!$rootDisponible): ?>
             <section class="pergamino">
-                <h2 class="seccion-titulo">Crónicas de Root</h2>
+                <h2 class="seccion-titulo">Batallas de Root</h2>
                 <div class="alerta alerta-error"><?php echo h($rootError); ?></div>
             </section>
         <?php else: ?>
@@ -1781,7 +1779,7 @@ if ($asimetricosDisponible && $asimetricoJuegoActual !== null) {
 
             <!-- B) Estadísticas de Root -->
             <section class="pergamino">
-                <h2 class="seccion-titulo">Crónicas de Root</h2>
+                <h2 class="seccion-titulo">Batallas de Root</h2>
 
                 <div class="grid-tres-columnas root-resumen">
                     <div class="estadistica-caja">
@@ -1801,7 +1799,7 @@ if ($asimetricosDisponible && $asimetricoJuegoActual !== null) {
                 <?php if ($rootTotalPartidas === 0): ?>
                     <p style="font-style:italic;">Todavía no hay partidas de Root registradas.</p>
                 <?php else: ?>
-                    <div class="grid-dos-columnas" style="margin-top:18px;">
+                    <div style="margin-top:18px; display:flex; flex-direction:column; gap:24px;">
                         <div>
                             <h3 style="margin:0 0 8px; color:#4a3219;">Ranking de Jugadores</h3>
                             <div class="tabla-contenedor tabla-root-scroll">
@@ -1979,12 +1977,12 @@ if ($asimetricosDisponible && $asimetricoJuegoActual !== null) {
     <div id="panel-leaderboard-asimetricos" data-tab-content-group="leaderboard" class="panel-oculto">
         <?php if (!$asimetricosDisponible): ?>
             <section class="pergamino">
-                <h2 class="seccion-titulo">Juegos Asimétricos / Crónicas de Personajes</h2>
+                <h2 class="seccion-titulo">Juegos Asimétricos</h2>
                 <div class="alerta alerta-error"><?php echo h($asimetricosError); ?></div>
             </section>
         <?php elseif ($asimetricoJuegoActual === null): ?>
             <section class="pergamino">
-                <h2 class="seccion-titulo">Juegos Asimétricos / Crónicas de Personajes</h2>
+                <h2 class="seccion-titulo">Juegos Asimétricos</h2>
                 <p style="font-style:italic;">No hay juegos asimétricos configurados todavía. Añádelos desde el panel de administración.</p>
             </section>
         <?php else: ?>
@@ -2020,7 +2018,7 @@ if ($asimetricosDisponible && $asimetricoJuegoActual !== null) {
 
             <!-- A) Cabecera y selector de juego asimétrico -->
             <section class="pergamino">
-                <h2 class="seccion-titulo">Juegos Asimétricos / Crónicas de Personajes</h2>
+                <h2 class="seccion-titulo">Juegos Asimétricos</h2>
 
                 <form method="GET" action="leaderboard.php" class="barra-filtro-leaderboard selector-asimetrico">
                     <?php if ($filtroJuego !== ''): ?>
@@ -2186,7 +2184,7 @@ if ($asimetricosDisponible && $asimetricoJuegoActual !== null) {
 
             <!-- C) Estadísticas asimétricas -->
             <section class="pergamino">
-                <h2 class="seccion-titulo">Crónicas de <?php echo h($asimetricoJuegoActual['nombre_visible']); ?></h2>
+                <h2 class="seccion-titulo">Batallas de <?php echo h($asimetricoJuegoActual['nombre_visible']); ?></h2>
 
                 <div class="grid-tres-columnas" style="margin-bottom:18px;">
                     <div class="estadistica-caja">
@@ -2206,7 +2204,7 @@ if ($asimetricosDisponible && $asimetricoJuegoActual !== null) {
                 <?php if ($asimetricoTotalPartidas === 0): ?>
                     <p style="font-style:italic;">Todavía no hay partidas registradas para este juego.</p>
                 <?php else: ?>
-                    <div class="grid-dos-columnas">
+                    <div style="margin-top:18px; display:flex; flex-direction:column; gap:24px;">
                         <div>
                             <h3 style="margin:0 0 8px; color:#4a3219;">Ranking de Jugadores</h3>
                             <div class="tabla-contenedor tabla-asimetrica-scroll">

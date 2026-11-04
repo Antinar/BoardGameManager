@@ -80,11 +80,11 @@ INSERT IGNORE INTO `Juego_Asimetrico` (`codigo_juego`, `nombre_visible`, `num_pe
 ('villainous_disney', 'Villainous: Disney', 1),
 ('villainous_marvel', 'Villainous: Marvel', 1),
 ('villainous_star_wars', 'Villainous: Star Wars', 1),
-('tag_team', 'Tag Team (Scorpion Masqué)', 2);
+('tag_team', 'Tag Team', 2);
 
 -- Personajes iniciales (catálogo ampliable desde la aplicación)
 INSERT IGNORE INTO `Personaje_Asimetrico` (`codigo_juego`, `nombre_personaje`) VALUES
--- Villainous: Disney (22)
+-- Villainous: Disney (20)
 ('villainous_disney', 'Maléfica'),
 ('villainous_disney', 'Úrsula'),
 ('villainous_disney', 'Jafar'),
@@ -103,11 +103,10 @@ INSERT IGNORE INTO `Personaje_Asimetrico` (`codigo_juego`, `nombre_personaje`) V
 ('villainous_disney', 'Lady Tremaine'),
 ('villainous_disney', 'El Rey del Mal'),
 ('villainous_disney', 'Gastón'),
-('villainous_disney', 'Síndrome'),
-('villainous_disney', 'Madam Mim'),
+('villainous_disney', 'Davy Jhones'),
 ('villainous_disney', 'Lotso'),
-('villainous_disney', 'Oogie Boogie'),
--- Villainous: Marvel (12)
+
+-- Villainous: Marvel (8)
 ('villainous_marvel', 'Thanos'),
 ('villainous_marvel', 'Hela'),
 ('villainous_marvel', 'Killmonger'),
@@ -116,27 +115,26 @@ INSERT IGNORE INTO `Personaje_Asimetrico` (`codigo_juego`, `nombre_personaje`) V
 ('villainous_marvel', 'Loki'),
 ('villainous_marvel', 'M.O.D.O.K.'),
 ('villainous_marvel', 'Madame Máscara'),
-('villainous_marvel', 'Venom'),
-('villainous_marvel', 'Doctor Octopus'),
-('villainous_marvel', 'Titania'),
-('villainous_marvel', 'Kang el Conquistador'),
--- Villainous: Star Wars (10)
+
+-- Villainous: Star Wars (5)
 ('villainous_star_wars', 'Darth Vader'),
 ('villainous_star_wars', 'Kylo Ren'),
 ('villainous_star_wars', 'General Grievous'),
 ('villainous_star_wars', 'Moff Gideon'),
 ('villainous_star_wars', 'Asajj Ventress'),
-('villainous_star_wars', 'Boba Fett'),
-('villainous_star_wars', 'Cad Bane'),
-('villainous_star_wars', 'Séptima Hermana'),
-('villainous_star_wars', 'Darth Maul'),
-('villainous_star_wars', 'Capitana Phasma'),
--- Tag Team (6)
-('tag_team', 'Luchador Alpha'),
-('tag_team', 'Luchador Beta'),
-('tag_team', 'Luchador Gamma'),
-('tag_team', 'Luchador Delta'),
-('tag_team', 'Luchador Épsilon'),
-('tag_team', 'Luchador Zeta');
+
+-- Tag Team (12)
+('tag_team', 'Golem'),
+('tag_team', 'Juana'),
+('tag_team', 'Grupo Salvaje'),
+('tag_team', 'Bödvar'),
+('tag_team', 'Shango'),
+('tag_team', 'Mamá Brijit'),
+('tag_team', 'Mefisto'),
+('tag_team', 'Pueblo Feérico'),
+('tag_team', 'Mordred'),
+('tag_team', 'Milady'),
+('tag_team', 'Wong Fei-hung'),
+('tag_team', 'Ching Shih');
 
 SET FOREIGN_KEY_CHECKS = 1;
