@@ -4,6 +4,18 @@
    Sin sombras difuminadas, sin gradientes brillantes ni efectos modernos.
    ========================================================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=Almendra+SC&family=Cinzel+Decorative:wght@700&family=IM+Fell+English+SC&family=MedievalSharp&family=Uncial+Antiqua&display=swap');
+
+.taberna-titulo {
+
+     font-family: 'Uncial Antiqua', Georgia, serif; 
+
+    font-size: 1.5rem; /* Un poco más grande para acompañar al nuevo logo */
+    color: #e8dcb8;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin: 0;
+}
 * {
     box-sizing: border-box;
     margin: 0;
@@ -31,12 +43,7 @@ body {
     gap: 15px;
 }
 
-.taberna-titulo {
-    font-size: 1.9rem;
-    color: #e8dcb8;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-}
+
 
 .taberna-subtitulo {
     font-size: 0.95rem;
@@ -1009,28 +1016,27 @@ body {
 .taberna-titulo-bloque {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
 }
 
 .header-logo-enlace {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background-color: #23170f;
-    border: 2px solid #4a3219;
-    border-radius: 2px;
-    padding: 3px;
+    background-color: transparent;
+    border: none;
+    padding: 0;
     text-decoration: none;
     flex-shrink: 0;
 }
 
 .header-logo-enlace:hover {
-    border-color: #a67c2e;
-    background-color: #2b1d12;
+    border-color: transparent;
+    background-color: none;
 }
 
 .header-logo-img {
-    max-height: 48px;
+    max-height: 96px;
     width: auto;
     object-fit: contain;
     display: block;
@@ -1232,11 +1238,11 @@ body {
 @media (max-width: 768px) {
     .taberna-titulo-bloque {
         justify-content: center;
-        gap: 10px;
+        gap: 12px;
     }
 
     .header-logo-img {
-        max-height: 40px;
+        max-height: 58px;
     }
 }
 
@@ -1642,4 +1648,47 @@ body {
         flex-direction: column;
         align-items: stretch;
     }
+}
+
+/* =========================================================================
+   FONDO DINÁMICO DE IMÁGENES OSCURECIDAS (CARPETA img/fondos/)
+   ========================================================================= */
+.taberna-fondo-contenedor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background-color: #23170f;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.taberna-fondo-capa {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 5s ease-in-out;
+}
+
+.taberna-fondo-capa.activa {
+    opacity: 1;
+}
+
+/* Capa que oscurece las fotos para que no confundan la vista */
+.taberna-fondo-velo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Sube 0.78 a 0.85 si lo quieres más oscuro, o bájalo a 0.65 si quieres que se vea más la imagen */
+    background-color: rgba(26, 17, 11, 0.78);
 }

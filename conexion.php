@@ -255,6 +255,25 @@ function renderizarNavegacion($paginaActiva = '') {
         document.head.appendChild(fav);
     }
     </script>
+    <?php 
+    $imagenesFondo = [];
+    $dirFondos = __DIR__ . '/img/fondos';
+    if (is_dir($dirFondos)) {
+        foreach (scandir($dirFondos) as $arcFondo) {
+            if (preg_match('/\.(jpg|jpeg|png|webp)$/i', $arcFondo)) {
+                $imagenesFondo[] = 'img/fondos/' . $arcFondo;
+            }
+        }
+    }
+    $fondoInicial = !empty($imagenesFondo) ? $imagenesFondo[array_rand($imagenesFondo)] : '';
+    ?>
+    <?php if (!empty($imagenesFondo)): ?>
+    <div id="taberna-fondo-dinamico" class="taberna-fondo-contenedor" data-fondos="<?php echo h(json_encode(array_values($imagenesFondo))); ?>">
+        <div class="taberna-fondo-capa activa" style="background-image: url('<?php echo h($fondoInicial); ?>');"></div>
+        <div class="taberna-fondo-capa"></div>
+        <div class="taberna-fondo-velo"></div>
+    </div>
+    <?php endif; ?>
     <header class="taberna-header">
     <div class="taberna-titulo-bloque">
     <a href="index.php" class="header-logo-enlace" title="Ir al Inicio">

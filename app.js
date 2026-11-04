@@ -1483,4 +1483,31 @@ document.addEventListener('DOMContentLoaded', function () {
         // Ejecutar restauración al cargar el DOM
         restaurarEstadoVistaActual();
     })();
+    // Rotación automática de imágenes de fondo desde img/fondos/
+    var contenedorFondo = document.getElementById('taberna-fondo-dinamico');
+    if (contenedorFondo) {
+        var listaFondos = [];
+        try {
+            listaFondos = JSON.parse(contenedorFondo.getAttribute('data-fondos') || '[]');
+        } catch (e) {
+            listaFondos = [];
+        }
+
+        if (listaFondos.length > 1) {
+            var capas = contenedorFondo.querySelectorAll('.taberna-fondo-capa');
+            var capaActivaIdx = 0;
+            var indiceImagen = 0;
+
+            setInterval(function () {
+                indiceImagen = (indiceImagen + 1) % listaFondos.length;
+                var siguienteCapaIdx = (capaActivaIdx + 1) % 2;
+
+                capas[siguienteCapaIdx].style.backgroundImage = "url('" + listaFondos[indiceImagen] + "')";
+                capas[siguienteCapaIdx].classList.add('activa');
+                capas[capaActivaIdx].classList.remove('activa');
+
+                capaActivaIdx = siguienteCapaIdx;
+            }, 12000); // Cambia cada 12 segundos (12000 ms)
+        }
+    }
 });
